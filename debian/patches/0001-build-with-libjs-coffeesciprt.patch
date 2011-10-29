@@ -1,0 +1,62 @@
+From: TANIGUCHI Takaki <takaki@asis.media-as.org>
+Date: Sat, 29 Oct 2011 18:26:43 +0900
+Subject: build with libjs-coffeesciprt
+
+---
+ python/pyphantomjs/csconverter.py |    2 +-
+ python/pyphantomjs/resources.qrc  |    1 -
+ src/csconverter.cpp               |    2 +-
+ src/phantomjs.qrc                 |    1 -
+ 4 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/python/pyphantomjs/csconverter.py b/python/pyphantomjs/csconverter.py
+index b2df0a3..64a331b 100644
+--- a/python/pyphantomjs/csconverter.py
++++ b/python/pyphantomjs/csconverter.py
+@@ -38,7 +38,7 @@ class CSConverter(QObject):
+ 
+         self.m_webPage = QWebPage(self)
+ 
+-        with QPyFile(':/resources/coffee-script.js') as f:
++        with QPyFile('/usr/lib/javascript/coffeescript/coffee-script.js') as f:
+             script = f.readAll()
+ 
+         self.m_webPage.mainFrame().evaluateJavaScript(script)
+diff --git a/python/pyphantomjs/resources.qrc b/python/pyphantomjs/resources.qrc
+index 0e23785..e31950b 100644
+--- a/python/pyphantomjs/resources.qrc
++++ b/python/pyphantomjs/resources.qrc
+@@ -4,7 +4,6 @@
+         <file>configurator.js</file>
+         <file>modules/fs.js</file>
+         <file>modules/webpage.js</file>
+-        <file>resources/coffee-script.js</file>
+         <file>resources/pyphantomjs-icon.png</file>
+     </qresource>
+ </RCC>
+diff --git a/src/csconverter.cpp b/src/csconverter.cpp
+index 0f4a1d1..46d7737 100644
+--- a/src/csconverter.cpp
++++ b/src/csconverter.cpp
+@@ -48,7 +48,7 @@ CSConverter *CSConverter::instance()
+ CSConverter::CSConverter()
+     : QObject(QCoreApplication::instance())
+ {
+-    QFile file(":/coffee-script.js");
++    QFile file("/usr/lib/javascript/coffee-script/coffee-script.js");
+     if (!file.open(QFile::ReadOnly)) {
+         Terminal::instance()->cerr("CoffeeScript compiler is not available!");
+         exit(1);
+diff --git a/src/phantomjs.qrc b/src/phantomjs.qrc
+index b8577dd..43fed06 100644
+--- a/src/phantomjs.qrc
++++ b/src/phantomjs.qrc
+@@ -1,7 +1,6 @@
+ <RCC>
+     <qresource prefix="/">
+         <file>phantomjs-icon.png</file>
+-        <file>coffee-script.js</file>
+         <file>usage.txt</file>
+         <file>bootstrap.js</file>
+         <file>configurator.js</file>
+-- 
