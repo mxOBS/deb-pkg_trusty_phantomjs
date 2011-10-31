@@ -3,11 +3,23 @@ Upstream-Name: phantomjs
 Source: http://code.google.com/p/phantomjs/
 
 Files: *
-Copyright: 2010 Ariya Hidayat <ariya.hidayat@gmail.com>
+Copyright: 
+	2011 Ariya Hidayat <ariya.hidayat@gmail.com>
+	2011 Ivan De Marino <ivan.de.marino@gmail.com>
+	2011 James Roe <roejames12@hotmail.com>
+	2011 execjosh, http://execjosh.blogspot.com
 License: BSD-3-Clause
 
+Files: example/modernizr.js
+Copyright: 2009-2011 Faruk Ates, Paul Irish, Alex Sexton
+License: BSD-3-Clause or MIT
+
 Files: python/*
-Copyright: 2010 Ariya Hidayat <ariya.hidayat@gmail.com>
+Copyright:
+	2011 Ariya Hidayat <ariya.hidayat@gmail.com>
+	2011 Ivan De Marino <ivan.de.marino@gmail.com>
+	2011 James Roe <roejames12@hotmail.com>
+	2011 execjosh, http://execjosh.blogspot.com
 License: GPL-3.0+
 
 Files: debian/*
@@ -55,3 +67,19 @@ License: GPL-3.0+
  On Debian systems, the complete text of the GNU General
  Public License version 3 can be found in "/usr/share/common-licenses/GPL-3".
 
+License: MIT
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
