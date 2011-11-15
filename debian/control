@@ -12,8 +12,8 @@ Build-Depends: debhelper (>= 7.0.50~),
 	libjs-coffeescript
 Standards-Version: 3.9.2
 Homepage: http://www.phantomjs.org/
-#Vcs-Git: git://git.debian.org/collab-maint/phantomjs.git
-#Vcs-Browser: http://git.debian.org/?p=collab-maint/phantomjs.git;a=summary
+Vcs-Git: git://git.debian.org/collab-maint/phantomjs.git
+Vcs-Browser: http://git.debian.org/?p=collab-maint/phantomjs.git;a=summary
 
 Package: phantomjs
 Architecture: any
@@ -30,7 +30,7 @@ Description: minimalistic headless WebKit-based with JavaScript API
 Package: python-pyphantomjs
 Section: python
 Architecture: all
-Depends: ${python:Depends}, ${misc:Depends}
+Depends: ${python:Depends}, ${misc:Depends}, python-qt4
 Provides: ${python:Provides}
 Description: Python porting of phantomjs JavaScript-driven tool
  PhantomJS is a headless WebKit with JavaScript API. It has fast and native

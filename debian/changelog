@@ -1,6 +1,6 @@
 phantomjs (1.3.0+dfsg-2) unstable; urgency=low
 
-  * debian/watch: improve pattern to return collect value.
+  * debian/watch: improve pattern to return correct value.
 
  -- TANIGUCHI Takaki <takaki@debian.org>  Tue, 01 Nov 2011 09:16:37 +0900
 
