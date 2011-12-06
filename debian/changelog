@@ -1,3 +1,10 @@
+phantomjs (1.3.0+dfsg-4) unstable; urgency=low
+
+  * debian/patches/0001-build-with-libjs-coffeesciprt.patch: Fixed
+    coffee-script.js path. (Closes: #651171)
+
+ -- TANIGUCHI Takaki <takaki@debian.org>  Tue, 06 Dec 2011 22:37:13 +0900
+
 phantomjs (1.3.0+dfsg-3) unstable; urgency=low
 
   * debian/control: Add python-qt4 to Depends (Closes: #648409)
