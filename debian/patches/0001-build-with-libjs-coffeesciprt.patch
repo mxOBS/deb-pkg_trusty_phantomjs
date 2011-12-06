@@ -43,7 +43,7 @@ index 0f4a1d1..46d7737 100644
      : QObject(QCoreApplication::instance())
  {
 -    QFile file(":/coffee-script.js");
-+    QFile file("/usr/lib/javascript/coffee-script/coffee-script.js");
++    QFile file("/usr/lib/javascript/coffeescript/coffee-script.js");
      if (!file.open(QFile::ReadOnly)) {
          Terminal::instance()->cerr("CoffeeScript compiler is not available!");
          exit(1);
