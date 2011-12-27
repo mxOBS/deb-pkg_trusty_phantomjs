@@ -13,5 +13,6 @@ Options:
 --max-disk-cache-size=size             Limits the size of disk cache (in KB)
 --output-encoding                      Sets the encoding used for terminal output (default is 'utf8')
 --proxy=address:port                   Sets the network proxy (e.g. "--proxy=192.168.1.42:8080")
+--proxy-type=[http|socks5]             Sets the proxy type, either "http" (default) or "socks5"
 --script-encoding                      Sets the encoding used for the starting script (default is 'utf8')
 --version                              Prints out PhantomJS version

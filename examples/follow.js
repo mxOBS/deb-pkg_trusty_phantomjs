@@ -3,16 +3,18 @@
 var users = ['sencha',
         'aconran',
         'adityabansod',
+        'ambisinister',
         'arnebech',
         'ariyahidayat',
+        'arthurakay',
         'bmoeskau',
         'darrellmeyer',
+        'davidfoelber',
         'DavidKaneda',
         'donovanerba',
         'edspencer',
         'evantrimboli',
         'ExtAnimal',
-        'jamespearce',
         'jamieavins',
         'jarrednicholls',
         'jayrobinson',
@@ -24,11 +26,13 @@ var users = ['sencha',
         'philstrong',
         'rdougan',
         'SubtleGradient',
+        '__ted__',
         'tmaintz',
+        'WesleyMoy',
         'whereisthysting'];
 
 function follow(user, callback) {
-    var page = new WebPage();
+    var page = require('webpage').create();
     page.open('http://mobile.twitter.com/' + user, function (status) {
         if (status === 'fail') {
             console.log(user + ': ?');
