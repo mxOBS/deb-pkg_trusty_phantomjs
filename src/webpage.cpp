@@ -44,6 +44,7 @@
 #include <QWebElement>
 #include <QWebFrame>
 #include <QWebPage>
+#include <QWebInspector>
 
 #include "networkaccessmanager.h"
 #include "utils.h"
@@ -108,10 +109,11 @@ WebPage::WebPage(QObject *parent, const Config *config)
     setObjectName("WebPage");
     m_webPage = new CustomPage(this);
     m_mainFrame = m_webPage->mainFrame();
+    m_mainFrame->setHtml(BLANK_HTML);
 
     connect(m_mainFrame, SIGNAL(javaScriptWindowObjectCleared()), SIGNAL(initialized()));
-    connect(m_webPage, SIGNAL(loadStarted()), SIGNAL(loadStarted()));
-    connect(m_webPage, SIGNAL(loadFinished(bool)), SLOT(finish(bool)));
+    connect(m_webPage, SIGNAL(loadStarted()), SIGNAL(loadStarted()), Qt::QueuedConnection);
+    connect(m_webPage, SIGNAL(loadFinished(bool)), SLOT(finish(bool)), Qt::QueuedConnection);
 
     // Start with transparent background.
     QPalette palette = m_webPage->palette();
@@ -134,8 +136,6 @@ WebPage::WebPage(QObject *parent, const Config *config)
 
     m_webPage->settings()->setAttribute(QWebSettings::LocalStorageEnabled, true);
     m_webPage->settings()->setLocalStoragePath(QDesktopServices::storageLocation(QDesktopServices::DataLocation));
-
-    m_mainFrame->setHtml(BLANK_HTML);
 
     // Custom network access manager to allow traffic monitoring.
     m_networkAccessManager = new NetworkAccessManager(this, config);
@@ -173,6 +173,21 @@ void WebPage::setLibraryPath(const QString &libraryPath)
 {
    m_libraryPath = libraryPath;
 }
+
+void
+WebPage::showInspector(const int port)
+{
+    m_webPage->settings()->setAttribute(QWebSettings::DeveloperExtrasEnabled, true);
+    m_inspector = new QWebInspector;
+    m_inspector->setPage(m_webPage);
+
+    if (port == -1)
+        m_inspector->setVisible(true);
+    else {
+        m_webPage->setProperty("_q_webInspectorServerPort", port);
+    }
+}
+
 
 void WebPage::applySettings(const QVariantMap &def)
 {
@@ -328,7 +343,8 @@ void WebPage::openUrl(const QString &address, const QVariant &op, const QVariant
     if (address == "about:blank") {
         m_mainFrame->setHtml(BLANK_HTML);
     } else {
-        m_mainFrame->load(QNetworkRequest(QUrl(address)), networkOp, body);
+        QUrl url = QUrl::fromEncoded(QByteArray(address.toAscii()));
+        m_mainFrame->load(QNetworkRequest(url), networkOp, body);
     }
 }
 

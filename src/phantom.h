@@ -34,6 +34,7 @@
 #include <QtGui>
 
 class WebPage;
+class WebServer;
 #include "csconverter.h"
 #include "filesystem.h"
 #include "encoding.h"
@@ -51,6 +52,7 @@ class Phantom: public QObject
 
 public:
     Phantom(QObject *parent = 0);
+    virtual ~Phantom();
 
     QStringList args() const;
 
@@ -71,15 +73,22 @@ public:
 
 public slots:
     QObject *createWebPage();
+    QObject *createWebServer();
     QObject *createFilesystem();
     QString loadModuleSource(const QString &name);
     bool injectJs(const QString &jsFilePath);
+
+    // exit() will not exit in debug mode. debugExit() will always exit.
     void exit(int code = 0);
+    void debugExit(int code = 0);
 
 private slots:
     void printConsoleMessage(const QString &msg, int lineNumber, const QString &source);
 
+    void onInitialized();
 private:
+    void doExit(int code);
+
     Encoding m_scriptFileEnc;
     WebPage *m_page;
     bool m_terminated;
@@ -88,6 +97,7 @@ private:
     QVariantMap m_defaultPageSettings;
     FileSystem *m_filesystem;
     QList<QPointer<WebPage> > m_pages;
+    QList<QPointer<WebServer> > m_servers;
     Config m_config;
 };
 

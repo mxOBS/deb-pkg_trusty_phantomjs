@@ -30,7 +30,7 @@ function waitFor(testFx, onReady, timeOutMillis) {
                     clearInterval(interval); //< Stop this interval
                 }
             }
-        }, 100); //< repeat check every 250ms
+        }, 100); //< repeat check every 100ms
 };
 
 
@@ -39,7 +39,7 @@ if (phantom.args.length === 0 || phantom.args.length > 2) {
     phantom.exit();
 }
 
-var page = new WebPage();
+var page = require('webpage').create();
 
 // Route "console.log()" calls from within the Page context to the main Phantom context (i.e. current "this")
 page.onConsoleMessage = function(msg) {

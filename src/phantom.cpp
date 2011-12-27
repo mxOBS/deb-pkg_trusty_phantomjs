@@ -40,6 +40,7 @@
 #include "terminal.h"
 #include "utils.h"
 #include "webpage.h"
+#include "webserver.h"
 
 
 // public:
@@ -80,7 +81,14 @@ Phantom::Phantom(QObject *parent)
     if (m_config.proxyHost().isEmpty()) {
         QNetworkProxyFactory::setUseSystemConfiguration(true);
     } else {
-        QNetworkProxy proxy(QNetworkProxy::HttpProxy, m_config.proxyHost(), m_config.proxyPort());
+        QString proxyType = m_config.proxyType();
+        QNetworkProxy::ProxyType networkProxyType = QNetworkProxy::HttpProxy;
+
+        if (proxyType == "socks5") {
+            networkProxyType = QNetworkProxy::Socks5Proxy;
+        }
+
+        QNetworkProxy proxy(networkProxyType, m_config.proxyHost(), m_config.proxyPort());
         QNetworkProxy::setApplicationProxy(proxy);
     }
 
@@ -92,6 +100,8 @@ Phantom::Phantom(QObject *parent)
 
     connect(m_page, SIGNAL(javaScriptConsoleMessageSent(QString, int, QString)),
             SLOT(printConsoleMessage(QString, int, QString)));
+    connect(m_page, SIGNAL(initialized()),
+            SLOT(onInitialized()));
 
     m_defaultPageSettings[PAGE_SETTINGS_LOAD_IMAGES] = QVariant::fromValue(m_config.autoLoadImages());
     m_defaultPageSettings[PAGE_SETTINGS_LOAD_PLUGINS] = QVariant::fromValue(m_config.pluginsEnabled());
@@ -103,13 +113,13 @@ Phantom::Phantom(QObject *parent)
 
     setLibraryPath(QFileInfo(m_config.scriptFile()).dir().absolutePath());
 
-    // Add 'phantom' and 'fs' object to the global scope
-    m_page->mainFrame()->addToJavaScriptWindowObject("phantom", this);
-
-    QFile f(":/bootstrap.js");
-    f.open(QFile::ReadOnly); //< It's OK to assume this succeed. If it doesn't, we have a bigger problem.
-    m_page->mainFrame()->evaluateJavaScript(QString::fromUtf8(f.readAll()));
+    onInitialized();
 }
+
+Phantom::~Phantom()
+{
+}
+
 
 QStringList Phantom::args() const
 {
@@ -139,9 +149,18 @@ bool Phantom::execute()
     if (m_config.scriptFile().isEmpty())
         return false;
 
-    if (!Utils::injectJsInFrame(m_config.scriptFile(), m_scriptFileEnc, QDir::currentPath(), m_page->mainFrame(), true)) {
-        m_returnValue = -1;
-        return false;
+    if (m_config.debug())
+    {
+        if (!Utils::loadJSForDebug(m_config.scriptFile(), m_scriptFileEnc, QDir::currentPath(), m_page->mainFrame(), true)) {
+            m_returnValue = -1;
+            return false;
+        }
+        m_page->showInspector(m_config.remoteDebugPort());
+    } else {
+        if (!Utils::injectJsInFrame(m_config.scriptFile(), m_scriptFileEnc, QDir::currentPath(), m_page->mainFrame(), true)) {
+            m_returnValue = -1;
+            return false;
+        }
     }
 
     return !m_terminated;
@@ -186,6 +205,16 @@ QObject *Phantom::createWebPage()
     return page;
 }
 
+QObject* Phantom::createWebServer()
+{
+    WebServer *server = new WebServer(this, &m_config);
+    m_servers.append(server);
+    ///TODO:
+//     page->applySettings(m_defaultPageSettings);
+//     page->setLibraryPath(QFileInfo(m_config.scriptFile()).dir().absolutePath());
+    return server;
+}
+
 QObject *Phantom::createFilesystem()
 {
     if (!m_filesystem)
@@ -199,11 +228,7 @@ QString Phantom::loadModuleSource(const QString &name)
     QString moduleSource;
     QString moduleSourceFilePath = ":/modules/" + name + ".js";
 
-    QFile f(moduleSourceFilePath);
-    if (f.open(QFile::ReadOnly)) {
-        moduleSource = QString::fromUtf8(f.readAll());
-        f.close();
-    }
+    moduleSource = Utils::readResourceFileUtf8(moduleSourceFilePath);
 
     return moduleSource;
 }
@@ -215,6 +240,26 @@ bool Phantom::injectJs(const QString &jsFilePath)
 
 void Phantom::exit(int code)
 {
+    if (m_config.debug())
+        Terminal::instance()->cout("Phantom::exit() called but not quitting in debug mode.");
+    else {
+        doExit(code);
+    }
+}
+
+void Phantom::debugExit(int code)
+{
+    doExit(code);
+}
+
+
+void Phantom::doExit(int code)
+{
+    if (m_config.debug())
+    {
+        Utils::cleanupFromDebug();
+    }
+
     m_terminated = true;
     m_returnValue = code;
     qDeleteAll(m_pages);
@@ -222,6 +267,18 @@ void Phantom::exit(int code)
     m_page = 0;
     QApplication::instance()->exit(code);
 }
+
+
+void
+Phantom::onInitialized()
+{
+    // Add 'phantom' object to the global scope
+    m_page->mainFrame()->addToJavaScriptWindowObject("phantom", this);
+
+    // Bootstrap the PhantomJS scope
+    m_page->mainFrame()->evaluateJavaScript(Utils::readResourceFileUtf8(":/bootstrap.js"));
+}
+
 
 // private slots:
 void Phantom::printConsoleMessage(const QString &message, int lineNumber, const QString &source)

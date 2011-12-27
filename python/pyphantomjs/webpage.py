@@ -10,28 +10,71 @@
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  along with this program. If not, see <http://www.gnu.org/licenses/>.
 '''
 
+import codecs
+import os
+import sys
+from cStringIO import StringIO
 from math import ceil, floor
 
 import sip
-from PyQt4.QtCore import (pyqtProperty, pyqtSignal, pyqtSlot, QByteArray,
-                          QDir, QEvent, QEventLoop, QFileInfo, QObject,
-                          QPoint, QRect, QSize, QSizeF, Qt, QUrl)
+from PyQt4.QtCore import (pyqtProperty, pyqtSignal, pyqtSlot, QBuffer,
+                          QByteArray, QDir, QEvent, QEventLoop, QFileInfo,
+                          QObject, QPoint, QRect, QSize, QSizeF, Qt, QUrl,
+                          qDebug)
 from PyQt4.QtGui import (QApplication, QDesktopServices, QImage,
                          QMouseEvent, QPainter, QPalette, QPrinter,
                          QRegion, qRgba)
 from PyQt4.QtNetwork import QNetworkAccessManager, QNetworkRequest
 from PyQt4.QtWebKit import QWebPage, QWebSettings
 
+try:
+    from PIL import Image
+except ImportError:
+    qDebug('PIL not found! Saving to gif files will be disabled.')
+
+from csconverter import CSConverter
 from networkaccessmanager import NetworkAccessManager
 from plugincontroller import do_action
-from utils import injectJsInFrame
+
+
+def injectJsInFrame(filePath, scriptEncoding, libraryPath, targetFrame, startingScript=False):
+    try:
+        # if file doesn't exist in the CWD, use the lookup
+        if not os.path.exists(filePath):
+            filePath = os.path.join(libraryPath, filePath)
+
+        try:
+            with codecs.open(filePath, encoding=scriptEncoding) as f:
+                script = f.read()
+        except UnicodeError as e:
+            sys.exit("%s in '%s'" % (e, filePath))
+
+        if script.startswith('#!') and not filePath.lower().endswith('.coffee'):
+            script = '//' + script
+
+        if filePath.lower().endswith('.coffee'):
+            result = CSConverter().convert(script)
+            if not result[0]:
+                if startingScript:
+                    sys.exit("%s: '%s'" % (result[1], filePath))
+                else:
+                    qDebug("%s: '%s'" % (result[1], filePath))
+                    script = ''
+            else:
+                script = result[1]
+
+        targetFrame.evaluateJavaScript(script)
+        return True
+    except IOError as (_, e):
+        qDebug("%s: '%s'" % (e, filePath))
+        return False
 
 
 class CustomPage(QWebPage):
@@ -67,8 +110,8 @@ class WebPage(QObject):
     initialized = pyqtSignal()
     javaScriptAlertSent = pyqtSignal(str)
     javaScriptConsoleMessageSent = pyqtSignal(str, int, str)
-    loadStarted = pyqtSignal()
     loadFinished = pyqtSignal(str)
+    loadStarted = pyqtSignal()
     resourceReceived = pyqtSignal('QVariantMap')
     resourceRequested = pyqtSignal('QVariantMap')
 
@@ -86,10 +129,11 @@ class WebPage(QObject):
         self.setObjectName('WebPage')
         self.m_webPage = CustomPage(self)
         self.m_mainFrame = self.m_webPage.mainFrame()
+        self.m_webPage.mainFrame().setHtml(self.blankHtml)
 
         self.m_mainFrame.javaScriptWindowObjectCleared.connect(self.initialized)
-        self.m_webPage.loadStarted.connect(self.loadStarted)
-        self.m_webPage.loadFinished.connect(self.finish)
+        self.m_webPage.loadStarted.connect(self.loadStarted, Qt.QueuedConnection)
+        self.m_webPage.loadFinished.connect(self.finish, Qt.QueuedConnection)
 
         # Start with transparent background
         palette = self.m_webPage.palette()
@@ -108,9 +152,6 @@ class WebPage(QObject):
         self.m_webPage.settings().setAttribute(QWebSettings.FrameFlatteningEnabled, True)
         self.m_webPage.settings().setAttribute(QWebSettings.LocalStorageEnabled, True)
         self.m_webPage.settings().setLocalStoragePath(QDesktopServices.storageLocation(QDesktopServices.DataLocation))
-
-        # Ensure we have a document.body.
-        self.m_webPage.mainFrame().setHtml(self.blankHtml)
 
         # Custom network access manager to allow traffic monitoring
         self.m_networkAccessManager = NetworkAccessManager(self.parent(), args)
@@ -146,6 +187,32 @@ class WebPage(QObject):
 
     def mainFrame(self):
         return self.m_mainFrame
+
+    def renderGif(self, image, fileName):
+        try:
+            Image
+        except NameError:
+            return False
+
+        buffer_ = QBuffer()
+        buffer_.open(QBuffer.ReadWrite)
+        image.save(buffer_, 'PNG')
+
+        stream = StringIO()
+        stream.write(buffer_.data())
+        buffer_.close()
+        stream.seek(0)
+        pilimg = Image.open(stream)
+
+        # use the adaptive quantizer instead of the web quantizer; eases off of grainy images
+        pilimg = pilimg.convert('RGB').convert('P', palette=Image.ADAPTIVE)
+
+        try:
+            pilimg.save(fileName)
+            return True
+        except IOError as (_, e):
+            qDebug("WebPage.renderGif - %s: '%s'" % (e, fileName))
+            return False
 
     def renderImage(self):
         contentsSize = self.m_mainFrame.contentsSize()
@@ -337,6 +404,14 @@ class WebPage(QObject):
     def injectJs(self, filePath):
         return injectJsInFrame(filePath, self.parent().m_scriptEncoding.encoding, self.m_libraryPath, self.m_mainFrame)
 
+    @pyqtProperty(str)
+    def libraryPath(self):
+        return self.m_libraryPath
+
+    @libraryPath.setter
+    def libraryPath(self, dirPath):
+        self.m_libraryPath = dirPath
+
     @pyqtSlot(str, str, 'QVariantMap')
     @pyqtSlot(str, 'QVariantMap', 'QVariantMap')
     def openUrl(self, address, op, settings):
@@ -401,16 +476,10 @@ class WebPage(QObject):
             return self.renderPdf(fileName)
 
         image = self.renderImage()
+        if fileName.lower().endswith('.gif'):
+            return self.renderGif(image, fileName)
 
         return image.save(fileName)
-
-    @pyqtProperty(str)
-    def libraryPath(self):
-        return self.m_libraryPath
-
-    @libraryPath.setter
-    def libraryPath(self, dirPath):
-        self.m_libraryPath = dirPath
 
     @pyqtSlot(str, 'QVariant', 'QVariant')
     def sendEvent(self, type_, arg1, arg2):

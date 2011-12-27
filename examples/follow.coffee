@@ -4,16 +4,18 @@ users= [
   'sencha'
   'aconran'
   'adityabansod'
-  'arnebech',
+  'ambisinister'
+  'arnebech'
   'ariyahidayat'
+  'arthurakay'
   'bmoeskau'
   'darrellmeyer'
+  'davidfoelber'
   'DavidKaneda'
   'donovanerba'
   'edspencer'
   'evantrimboli'
   'ExtAnimal'
-  'jamespearce'
   'jamieavins'
   'jarrednicholls'
   'jayrobinson'
@@ -25,12 +27,14 @@ users= [
   'philstrong'
   'rdougan'
   'SubtleGradient'
+  '__ted__'
   'tmaintz'
+  'WesleyMoy'
   'whereisthysting'
   ]
 
 follow = (user, callback) ->
-  page = new WebPage()
+  page = require('webpage').create()
   page.open 'http://mobile.twitter.com/' + user, (status) ->
     if status is 'fail'
       console.log user + ': ?'

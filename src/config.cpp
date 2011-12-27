@@ -33,8 +33,10 @@
 #include <QDir>
 #include <QWebPage>
 #include <QWebFrame>
+#include <QNetworkProxy>
 
 #include "terminal.h"
+#include "utils.h"
 
 // public:
 Config::Config(QObject *parent)
@@ -104,6 +106,10 @@ void Config::processArgs(const QStringList &args)
             setLocalToRemoteUrlAccessEnabled(true);
             continue;
         }
+        if (arg == "--proxy-type=") {
+            setProxyType(arg.mid(13).trimmed());
+            continue;
+        }
         if (arg.startsWith("--proxy=")) {
             setProxy(arg.mid(8).trimmed());
             continue;
@@ -123,6 +129,11 @@ void Config::processArgs(const QStringList &args)
         if (arg.startsWith("--config=")) {
             QString configPath = arg.mid(9).trimmed();
             loadJsonFile(configPath);
+            continue;
+        }
+        if (arg.startsWith("--remote-debugger-port=")) {
+            setDebug(true);
+            setRemoteDebugPort(arg.mid(23).trimmed().toInt());
             continue;
         }
         if (arg.startsWith("--")) {
@@ -146,54 +157,35 @@ static QString normalizePath(const QString &path)
     return path.isEmpty() ? path : QDir::fromNativeSeparators(path);
 }
 
-// THIS METHOD ASSUMES THAT content IS *NEVER* NULL!
-static bool readFile(const QString &path, QString *const content)
-{
-    // Ensure empty content
-    content->clear();
-
-    // Check existence and try to open as text
-    QFile file(path);
-    if (!file.exists() || !file.open(QFile::ReadOnly | QFile::Text)) {
-        return false;
-    }
-
-    content->append(QString::fromUtf8(file.readAll()).trimmed());
-
-    file.close();
-
-    return true;
-}
-
 void Config::loadJsonFile(const QString &filePath)
 {
     QString jsonConfig;
-    if (!readFile(normalizePath(filePath), &jsonConfig)) {
+    QFile f(filePath);
+
+    // Check file exists and is readable
+    if (!f.exists() || !f.open(QFile::ReadOnly | QFile::Text)) {
         Terminal::instance()->cerr("Unable to open config: \"" + filePath + "\"");
         return;
-    } else if (jsonConfig.isEmpty()) {
-        return;
-    } else if (!jsonConfig.startsWith('{') || !jsonConfig.endsWith('}')) {
+    }
+
+    // Read content
+    jsonConfig = QString::fromUtf8(f.readAll().trimmed());
+    f.close();
+
+    // Check it's a valid JSON format
+    if (jsonConfig.isEmpty() || !jsonConfig.startsWith('{') || !jsonConfig.endsWith('}')) {
         Terminal::instance()->cerr("Config file MUST be in JSON format!");
         return;
     }
 
     // Load configurator
-    QString configurator;
-    if (!readFile(":/configurator.js", &configurator)) {
-        Terminal::instance()->cerr("Unable to load JSON configurator!");
-        return;
-    } else if (configurator.isEmpty()) {
-        Terminal::instance()->cerr("Unable to set-up JSON configurator!");
-        return;
-    }
+    QString configurator = Utils::readResourceFileUtf8(":/configurator.js");
 
+    // Use a temporary QWebPage to load the JSON configuration in this Object using the 'configurator' above
     QWebPage webPage;
-
-    // Add the config object
+    // Add this object to the global scope
     webPage.mainFrame()->addToJavaScriptWindowObject("config", this);
-
-    // Apply the settings
+    // Apply the JSON config settings to this very object
     webPage.mainFrame()->evaluateJavaScript(configurator.arg(jsonConfig));
 }
 
@@ -279,6 +271,16 @@ bool Config::pluginsEnabled() const
 void Config::setPluginsEnabled(const bool value)
 {
     m_pluginsEnabled = value;
+}
+
+QString Config::proxyType() const
+{
+    return m_proxyType;
+}
+
+void Config::setProxyType(const QString value)
+{
+    m_proxyType = value;
 }
 
 QString Config::proxy() const
@@ -373,6 +375,26 @@ void Config::setVersionFlag(const bool value)
     m_versionFlag = value;
 }
 
+bool Config::debug() const
+{
+    return m_debug;
+}
+
+void Config::setDebug(const bool value)
+{
+    m_debug = value;
+}
+
+int Config::remoteDebugPort() const
+{
+    return m_remoteDebugPort;
+}
+
+void Config::setRemoteDebugPort(const int port)
+{
+    m_remoteDebugPort = port;
+}
+
 // private:
 void Config::resetToDefaults()
 {
@@ -384,6 +406,7 @@ void Config::resetToDefaults()
     m_localToRemoteUrlAccessEnabled = false;
     m_outputEncoding = "UTF-8";
     m_pluginsEnabled = false;
+    m_proxyType = "http";
     m_proxyHost.clear();
     m_proxyPort = 1080;
     m_scriptArgs.clear();
@@ -391,6 +414,8 @@ void Config::resetToDefaults()
     m_scriptFile.clear();
     m_unknownOption.clear();
     m_versionFlag = false;
+    m_debug = false;
+    m_remoteDebugPort = -1;
 }
 
 void Config::setProxyHost(const QString &value)
