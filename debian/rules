@@ -15,12 +15,10 @@
 override_dh_auto_build:
 	qmake-qt4
 	$(MAKE)
-	dh_auto_build -Dpython
+#	dh_auto_build -Dpython
 
-override_dh_auto_install:
-	$(MAKE) install
-	dh_auto_install -Dpython --destdir=debian/python-pyphantomjs
+#override_dh_auto_install:
+#	$(MAKE) install
 
-override_dh_auto_clean:
-	[ ! -f Makefile ] || $(MAKE) distclean
-	dh_auto_clean -Dpython
+#override_dh_auto_clean:
+#	[ ! -f Makefile ] || $(MAKE) distclean
