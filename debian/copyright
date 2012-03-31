@@ -1,13 +1,13 @@
-Format: http://dep.debian.net/deps/dep5
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: phantomjs
 Source: http://code.google.com/p/phantomjs/
 
 Files: *
 Copyright: 
-	2011 Ariya Hidayat <ariya.hidayat@gmail.com>
-	2011 Ivan De Marino <ivan.de.marino@gmail.com>
-	2011 James Roe <roejames12@hotmail.com>
-	2011 execjosh, http://execjosh.blogspot.com
+ 2011 Ariya Hidayat <ariya.hidayat@gmail.com>
+ 2011 Ivan De Marino <ivan.de.marino@gmail.com>
+ 2011 James Roe <roejames12@hotmail.com>
+ 2011 execjosh, http://execjosh.blogspot.com
 License: BSD-3-Clause
 
 Files: example/modernizr.js
@@ -15,11 +15,11 @@ Copyright: 2009-2011 Faruk Ates, Paul Irish, Alex Sexton
 License: BSD-3-Clause or MIT
 
 Files: python/*
-Copyright:
-	2011 Ariya Hidayat <ariya.hidayat@gmail.com>
-	2011 Ivan De Marino <ivan.de.marino@gmail.com>
-	2011 James Roe <roejames12@hotmail.com>
-	2011 execjosh, http://execjosh.blogspot.com
+Copyright: 
+ 2011 Ariya Hidayat <ariya.hidayat@gmail.com>
+ 2011 Ivan De Marino <ivan.de.marino@gmail.com>
+ 2011 James Roe <roejames12@hotmail.com>
+ 2011 execjosh, http://execjosh.blogspot.com
 License: GPL-3.0+
 
 Files: debian/*
@@ -83,3 +83,4 @@ License: MIT
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
+
