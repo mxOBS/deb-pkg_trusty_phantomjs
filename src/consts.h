@@ -32,11 +32,11 @@
 #ifndef CONSTS_H
 #define CONSTS_H
 
-// Current Version: 1.4.1
+// Current Version: 1.5.0
 #define PHANTOMJS_VERSION_MAJOR     1
-#define PHANTOMJS_VERSION_MINOR     4
-#define PHANTOMJS_VERSION_PATCH     1
-#define PHANTOMJS_VERSION_STRING    "1.4.1"
+#define PHANTOMJS_VERSION_MINOR     5
+#define PHANTOMJS_VERSION_PATCH     0
+#define PHANTOMJS_VERSION_STRING    "1.5.0"
 
 #define COFFEE_SCRIPT_EXTENSION     ".coffee"
 
@@ -59,5 +59,6 @@
 #define PAGE_SETTINGS_LOCAL_ACCESS_REMOTE   "localToRemoteUrlAccessEnabled"
 #define PAGE_SETTINGS_USERNAME              "userName"
 #define PAGE_SETTINGS_PASSWORD              "password"
+#define PAGE_SETTINGS_WEB_SECURITY_ENABLED  "webSecurityEnabled"
 
 #endif // CONSTS_H

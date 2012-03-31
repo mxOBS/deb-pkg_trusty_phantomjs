@@ -94,42 +94,28 @@ bool Utils::injectJsInFrame(const QString &jsFilePath, const Encoding &jsFileEnc
         return false;
     }
     // Execute JS code in the context of the document
-    targetFrame->evaluateJavaScript(scriptBody);
+    targetFrame->evaluateJavaScript(scriptBody, jsFilePath);
     return true;
 }
 
-bool Utils::loadJSForDebug(const QString& jsFilePath, const QString& libraryPath, QWebFrame* targetFrame, const bool startingScript)
+bool Utils::loadJSForDebug(const QString& jsFilePath, const QString& libraryPath, QWebFrame* targetFrame, const bool autorun)
 {
-    return loadJSForDebug(jsFilePath, Encoding::UTF8, libraryPath, targetFrame, startingScript);
+    return loadJSForDebug(jsFilePath, Encoding::UTF8, libraryPath, targetFrame, autorun);
 }
 
-bool Utils::loadJSForDebug(const QString& jsFilePath, const Encoding& jsFileEnc, const QString& libraryPath, QWebFrame* targetFrame, const bool startingScript)
+bool Utils::loadJSForDebug(const QString& jsFilePath, const Encoding& jsFileEnc, const QString& libraryPath, QWebFrame* targetFrame, const bool autorun)
 {
-
     QString scriptPath = findScript(jsFilePath, libraryPath);
     QString scriptBody = jsFromScriptFile(scriptPath, jsFileEnc);
 
-    QFile wrapper(":/debug_wrapper.js");
-    if (!wrapper.open(QIODevice::ReadOnly))
-        return false; // We got big issues
-    QString jsWrapper = QString::fromUtf8(wrapper.readAll());
-    jsWrapper = jsWrapper.arg(scriptBody);
-    m_tempWrapper = new QTemporaryFile(QDir::tempPath() + "/debugwrapper_XXXXXX.js");
-    m_tempWrapper->open();
-    m_tempWrapper->write(jsWrapper.toUtf8());
-    m_tempWrapper->close();
+    QString remoteDebuggerHarnessSrc =  Utils::readResourceFileUtf8(":/remote_debugger_harness.html");
+    remoteDebuggerHarnessSrc = remoteDebuggerHarnessSrc.arg(scriptBody);
+    targetFrame->setHtml(remoteDebuggerHarnessSrc);
 
-    QFile f(":/debug_harness.html");
-    if (!f.open(QIODevice::ReadOnly))
-        return false;
-    QString html = QString::fromUtf8(f.readAll());
+    if (autorun) {
+        targetFrame->evaluateJavaScript("__run()", QString());
+    }
 
-    html = html.arg(m_tempWrapper->fileName());
-    m_tempHarness = new QTemporaryFile(QDir::tempPath() + "/debugharness_XXXXXX.html");
-    m_tempHarness->open();
-    m_tempHarness->write(html.toLocal8Bit());
-    m_tempHarness->close();
-    targetFrame->load(QUrl::fromLocalFile(m_tempHarness->fileName()));
     return true;
 }
 

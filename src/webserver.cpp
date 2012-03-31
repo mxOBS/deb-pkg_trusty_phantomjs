@@ -30,31 +30,59 @@
 
 #include "webserver.h"
 
-#include "mongoose.h"
+#include "mongoose/mongoose.h"
 
 #include <QByteArray>
 #include <QHostAddress>
 #include <QMetaType>
 #include <QThread>
 #include <QUrl>
+#include <QVector>
+#include <QDebug>
+
+namespace UrlEncodedParser {
+
+QString unescape(QByteArray in)
+{
+    // first step: decode '+' to spaces
+    for(int i = 0; i < in.length(); ++i) {
+        QByteRef c = in[i];
+        if (c == '+') {
+            c = ' ';
+        }
+    }
+    // now decode as usual
+    return QUrl::fromPercentEncoding(in);
+};
+
+// Parse a application/x-www-form-urlencoded data string
+QVariantMap parse(const QByteArray &data) {
+    QVariantMap ret;
+    if (data.isEmpty()) {
+        return ret;
+    }
+    foreach(const QByteArray &part, data.split('&')) {
+        const int eqPos = part.indexOf('=');
+        if (eqPos == -1) {
+            ret[unescape(part)] = "";
+        } else {
+            const QByteArray key = part.mid(0, eqPos);
+            const QByteArray value = part.mid(eqPos + 1);
+            ret[unescape(key)] = unescape(value);
+        }
+    }
+
+    return ret;
+}
+
+}
 
 static void *callback(mg_event event,
                       mg_connection *conn,
-                      const mg_request_info *request_info)
+                      const mg_request_info *request)
 {
-    WebServer* server = static_cast<WebServer*>(request_info->user_data);
-    // note: we use a blocking queued connection to always handle the request in the main thread
-    // TODO: check whether direct call works as well
-    bool handled = false;
-    Qt::ConnectionType connectionType = Qt::DirectConnection;
-    if (QThread::currentThread() != server->thread()) {
-        connectionType = Qt::BlockingQueuedConnection;
-    }
-    QMetaObject::invokeMethod(server, "handleRequest", connectionType,
-                              Q_ARG(mg_event, event), Q_ARG(mg_connection*, conn),
-                              Q_ARG(const mg_request_info*, request_info),
-                              Q_ARG(bool*, &handled));
-    if (handled) {
+    WebServer* server = static_cast<WebServer*>(request->user_data);
+    if (server->handleRequest(event, conn, request)) {
         // anything non-null... pretty ugly, why not simply a bool??
         return server;
     } else {
@@ -62,16 +90,13 @@ static void *callback(mg_event event,
     }
 }
 
-WebServer::WebServer(QObject *parent, const Config *config)
-    : QObject(parent)
-    , m_config(m_config)
+WebServer::WebServer(QObject *parent, Config *config)
+    : REPLCompletable(parent)
+    , m_config(config)
     , m_ctx(0)
 {
     setObjectName("WebServer");
-    qRegisterMetaType<mg_event>("mg_event");
-    qRegisterMetaType<mg_connection*>("mg_connection*");
-    qRegisterMetaType<const mg_request_info*>("const mg_request_info*");
-    qRegisterMetaType<bool*>("bool*");
+    qRegisterMetaType<WebServerResponse*>("WebServerResponse*");
 }
 
 WebServer::~WebServer()
@@ -79,17 +104,20 @@ WebServer::~WebServer()
     close();
 }
 
-bool WebServer::listenOnPort(const QString& port)
+bool WebServer::listenOnPort(const QString& port, const QVariantMap& opts)
 {
     ///TODO: listen on multiple ports?
     close();
 
-    const char *options[] = {
-        "listening_ports", qstrdup(qPrintable(port)),
-        "enable_directory_listing", "no",
-        NULL};
+    QVector<const char*> options;
+    options <<  "listening_ports" << qstrdup(qPrintable(port));
+    options << "enable_directory_listing" << "no";
+    if (opts.value("keepAlive", false).toBool()) {
+        options << "enable_keep_alive" << "yes";
+    }
+    options << NULL;
     ///TODO: more options from m_config?
-    m_ctx = mg_start(&callback, this, options);
+    m_ctx = mg_start(&callback, this, options.data());
     if (!m_ctx) {
         return false;
     }
@@ -106,71 +134,146 @@ QString WebServer::port() const
 void WebServer::close()
 {
     if (m_ctx) {
+        m_closing = 1;
+        {
+            // make sure we wake up all pending responses, such that mg_stop()
+            // can be called without deadlocking
+            QMutexLocker lock(&m_mutex);
+            foreach(WebServerResponse* response, m_pendingResponses) {
+                response->close();
+            }
+        }
         mg_stop(m_ctx);
         m_ctx = 0;
         m_port.clear();
     }
 }
 
-void WebServer::handleRequest(mg_event event, mg_connection *conn, const mg_request_info *request,
-                              bool *handled)
+bool WebServer::handleRequest(mg_event event, mg_connection *conn, const mg_request_info *request)
 {
-    Q_ASSERT(QThread::currentThread() == thread());
-    if (event == MG_NEW_REQUEST) {
-        WebServerResponse responseObj(conn);
+    if (event != MG_NEW_REQUEST) {
+        return false;
+    }
 
-        // Modelled after http://nodejs.org/docs/latest/api/http.html#http.ServerRequest
-        QVariantMap requestObject;
+    if (m_closing) {
+        return false;
+    }
 
-        ///TODO: encoding?!
+    // Modelled after http://nodejs.org/docs/latest/api/http.html#http.ServerRequest
+    QVariantMap requestObject;
 
-        if (request->request_method)
-            requestObject["method"] = QString::fromLocal8Bit(request->request_method);
-        if (request->http_version)
-            requestObject["httpVersion"] = QString::fromLocal8Bit(request->http_version);
-        if (request->status_code >=0)
-            requestObject["statusCode"] = request->status_code;
+    ///TODO: encoding?!
 
-        QByteArray uri(request->uri);
-        if (uri.startsWith('/'))
-            uri = '/' + QUrl::toPercentEncoding(QString::fromLatin1(request->uri + 1));
-        if (request->query_string)
-            uri.append('?').append(QByteArray(request->query_string));
-        requestObject["url"] = uri.data();
+    if (request->request_method)
+        requestObject["method"] = QString::fromLocal8Bit(request->request_method);
+    if (request->http_version)
+        requestObject["httpVersion"] = QString::fromLocal8Bit(request->http_version);
+    if (request->status_code >=0)
+        requestObject["statusCode"] = request->status_code;
+
+    QByteArray uri(request->uri);
+    if (uri.startsWith('/'))
+        uri = '/' + QUrl::toPercentEncoding(QString::fromLatin1(request->uri + 1), "/?&#");
+    if (request->query_string)
+        uri.append('?').append(QByteArray(request->query_string));
+    requestObject["url"] = uri.data();
 
 #if 0
-        // Non-standard and thus disable for the time being.
-        requestObject["isSSL"] = request->is_ssl;
-        requestObject["remoteIP"] = QHostAddress(request->remote_ip).toString();;
-        requestObject["remotePort"] = request->remote_port;
-        if (request->remote_user)
-            requestObject["remoteUser"] = QString::fromLocal8Bit(request->remote_user);
+    // Non-standard and thus disable for the time being.
+    requestObject["isSSL"] = request->is_ssl;
+    requestObject["remoteIP"] = QHostAddress(request->remote_ip).toString();;
+    requestObject["remotePort"] = request->remote_port;
+    if (request->remote_user)
+        requestObject["remoteUser"] = QString::fromLocal8Bit(request->remote_user);
 #endif
 
-        QVariantMap headersObject;
-        for (int i = 0; i < request->num_headers; ++i) {
-            QString key = QString::fromLocal8Bit(request->http_headers[i].name);
-            QString value = QString::fromLocal8Bit(request->http_headers[i].value);
-            headersObject[key] = value;
-        }
-        requestObject["headers"] = headersObject;
-
-        emit newRequest(requestObject, &responseObj);
-        *handled = true;
-        return;
+    QVariantMap headersObject;
+    for (int i = 0; i < request->num_headers; ++i) {
+        QString key = QString::fromLocal8Bit(request->http_headers[i].name);
+        QString value = QString::fromLocal8Bit(request->http_headers[i].value);
+        headersObject[key] = value;
     }
-    *handled = false;
+    requestObject["headers"] = headersObject;
+
+    if ((requestObject["method"] == "POST" || requestObject["method"] == "PUT")
+        && headersObject.contains("Content-Length"))
+    {
+        bool ok = false;
+        uint contentLength = headersObject["Content-Length"].toUInt(&ok);
+        if (ok) {
+            contentLength += 1; // allow \0 at end
+            char * data = new char[contentLength];
+            int read = mg_read(conn, data, contentLength);
+            QByteArray rawData(data, read);
+            requestObject["rawData"] = QVariant(rawData);
+            // Check if the 'Content-Type' requires decoding
+            if (headersObject["Content-Type"] == "application/x-www-form-urlencoded") {
+                requestObject["post"] = UrlEncodedParser::parse(rawData);
+            } else {
+                requestObject["post"] = QVariant(rawData);
+            }
+            delete[] data;
+        }
+    }
+
+    // Emit signal that is catched by the PhantomJS callback,
+    // then wait until response.close() was called from
+    // the PhantomJS script.
+    //
+    // This is achieved using the wait semaphore, which is
+    // acquired here, in the background thread, and released
+    // in WebServerResponse::close() i.e. the foreground thread
+    QSemaphore wait;
+    WebServerResponse responseObject(conn, &wait);
+    responseObject.moveToThread(thread());
+
+    {
+        if (m_closing) {
+            return false;
+        }
+        QMutexLocker lock(&m_mutex);
+        if (m_closing) {
+            return false;
+        }
+        m_pendingResponses << (&responseObject);
+    }
+    newRequest(requestObject, &responseObject);
+    wait.acquire();
+    {
+        if (m_closing) {
+            return false;
+        }
+        QMutexLocker lock(&m_mutex);
+        if (m_closing) {
+            return false;
+        }
+        m_pendingResponses.removeOne(&responseObject);
+    }
+    return true;
+}
+
+void WebServer::initCompletions()
+{
+    // Add completion for the Dynamic Properties of the 'webpage' object
+    // properties
+    addCompletion("clipRect");
+    // functions
+    addCompletion("listen");
+    addCompletion("close");
+    // callbacks
+    addCompletion("onNewRequest");
 }
 
 
 //BEGIN WebServerResponse
 
-WebServerResponse::WebServerResponse(mg_connection *conn)
-    : m_conn(conn)
+WebServerResponse::WebServerResponse(mg_connection* conn, QSemaphore* close)
+    : REPLCompletable()
+    , m_conn(conn)
     , m_statusCode(200)
     , m_headersSent(false)
+    , m_close(close)
 {
-
 }
 
 const char* responseCodeString(int code)
@@ -273,6 +376,7 @@ void WebServerResponse::writeHead(int statusCode, const QVariantMap &headers)
     mg_printf(m_conn, "HTTP/1.1 %d %s\r\n", m_statusCode, responseCodeString(m_statusCode));
     QVariantMap::const_iterator it = headers.constBegin();
     while(it != headers.constEnd()) {
+        qDebug() << "Response Header key:" << it.key() << "value:" << it.value().toString();
         mg_printf(m_conn, "%s: %s\r\n", qPrintable(it.key()), qPrintable(it.value().toString()));
         ++it;
     }
@@ -287,6 +391,11 @@ void WebServerResponse::write(const QString &body)
     ///TODO: encoding?!
     const QByteArray data = body.toLocal8Bit();
     mg_write(m_conn, data.constData(), data.size());
+}
+
+void WebServerResponse::close()
+{
+    m_close->release();
 }
 
 int WebServerResponse::statusCode() const
@@ -323,6 +432,17 @@ void WebServerResponse::setHeaders(const QVariantMap &headers)
     ///TODO: what is the best-practice error handling in javascript? exceptions?
     Q_ASSERT(!m_headersSent);
     m_headers = headers;
+}
+
+void WebServerResponse::initCompletions()
+{
+    // Add completion for the Dynamic Properties of the 'webpage' object
+    // properties
+    addCompletion("statusCode");
+    addCompletion("headers");
+    // functions
+    addCompletion("writeHead");
+    addCompletion("write");
 }
 
 //END WebServerResponse

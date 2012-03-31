@@ -47,7 +47,9 @@ class Config: QObject
     Q_PROPERTY(bool pluginsEnabled READ pluginsEnabled WRITE setPluginsEnabled)
     Q_PROPERTY(QString proxyType READ proxyType WRITE setProxyType)
     Q_PROPERTY(QString proxy READ proxy WRITE setProxy)
+    Q_PROPERTY(QString proxyAuth READ proxyAuth WRITE setProxyAuth)
     Q_PROPERTY(QString scriptEncoding READ scriptEncoding WRITE setScriptEncoding)
+    Q_PROPERTY(bool webSecurityEnabled READ webSecurityEnabled WRITE setWebSecurityEnabled)
 
 public:
     Config(QObject *parent = 0);
@@ -88,6 +90,13 @@ public:
     QString proxyHost() const;
     int proxyPort() const;
 
+    QString proxyAuth() const;
+    void setProxyAuth(const QString &value);
+    QString proxyAuthUser() const;
+    QString proxyAuthPass() const;
+    void setProxyAuthUser(const QString &value);
+    void setProxyAuthPass(const QString &value);
+
     QStringList scriptArgs() const;
     void setScriptArgs(const QStringList &value);
 
@@ -108,6 +117,16 @@ public:
 
     void setRemoteDebugPort(const int port);
     int remoteDebugPort() const;
+
+    void setRemoteDebugAutorun(const bool value);
+    bool remoteDebugAutorun() const;
+
+    bool webSecurityEnabled() const;
+    void setWebSecurityEnabled(const bool value);
+
+    bool helpFlag() const;
+    void setHelpFlag(const bool value);
+
 private:
     void resetToDefaults();
     void setProxyHost(const QString &value);
@@ -126,6 +145,8 @@ private:
     QString m_proxyType;
     QString m_proxyHost;
     int m_proxyPort;
+    QString m_proxyAuthUser;
+    QString m_proxyAuthPass;
     QStringList m_scriptArgs;
     QString m_scriptEncoding;
     QString m_scriptFile;
@@ -135,6 +156,9 @@ private:
     QString m_authPass;
     bool m_debug;
     int m_remoteDebugPort;
+    bool m_remoteDebugAutorun;
+    bool m_webSecurityEnabled;
+    bool m_helpFlag;
 };
 
 #endif // CONFIG_H

@@ -58,7 +58,8 @@
 
 class CustomPage: public QWebPage
 {
-Q_OBJECT
+    Q_OBJECT
+
 public:
     CustomPage(WebPage *parent = 0)
         : QWebPage(parent)
@@ -88,7 +89,14 @@ protected:
     }
 
     void javaScriptConsoleMessage(const QString &message, int lineNumber, const QString &sourceID) {
-        m_webPage->emitConsoleMessage(message, lineNumber, sourceID);
+        Q_UNUSED(lineNumber);
+        Q_UNUSED(sourceID);
+
+        m_webPage->emitConsoleMessage(message);
+    }
+
+    void javaScriptError(const QWebPage::JavaScriptError& error) {
+        m_webPage->emitError(error);
     }
 
     QString userAgentForUrl(const QUrl &url) const {
@@ -103,13 +111,14 @@ private:
     friend class WebPage;
 };
 
-WebPage::WebPage(QObject *parent, const Config *config)
-    : QObject(parent)
+
+WebPage::WebPage(QObject *parent, const Config *config, const QUrl &baseUrl)
+    : REPLCompletable(parent)
 {
     setObjectName("WebPage");
     m_webPage = new CustomPage(this);
     m_mainFrame = m_webPage->mainFrame();
-    m_mainFrame->setHtml(BLANK_HTML);
+    m_mainFrame->setHtml(BLANK_HTML, baseUrl);
 
     connect(m_mainFrame, SIGNAL(javaScriptWindowObjectCleared()), SIGNAL(initialized()));
     connect(m_webPage, SIGNAL(loadStarted()), SIGNAL(loadStarted()), Qt::QueuedConnection);
@@ -130,9 +139,7 @@ WebPage::WebPage(QObject *parent, const Config *config)
     m_webPage->settings()->setAttribute(QWebSettings::OfflineWebApplicationCacheEnabled, true);
     m_webPage->settings()->setOfflineWebApplicationCachePath(QDesktopServices::storageLocation(QDesktopServices::DataLocation));
 
-#if QT_VERSION >= QT_VERSION_CHECK(4, 7, 0)
     m_webPage->settings()->setAttribute(QWebSettings::FrameFlatteningEnabled, true);
-#endif
 
     m_webPage->settings()->setAttribute(QWebSettings::LocalStorageEnabled, true);
     m_webPage->settings()->setLocalStoragePath(QDesktopServices::storageLocation(QDesktopServices::DataLocation));
@@ -163,6 +170,10 @@ void WebPage::setContent(const QString &content)
     m_mainFrame->setHtml(content);
 }
 
+QString WebPage::plainText() const
+{
+    return m_mainFrame->toPlainText();
+}
 
 QString WebPage::libraryPath() const
 {
@@ -196,10 +207,9 @@ void WebPage::applySettings(const QVariantMap &def)
     opt->setAttribute(QWebSettings::AutoLoadImages, def[PAGE_SETTINGS_LOAD_IMAGES].toBool());
     opt->setAttribute(QWebSettings::PluginsEnabled, def[PAGE_SETTINGS_LOAD_PLUGINS].toBool());
     opt->setAttribute(QWebSettings::JavascriptEnabled, def[PAGE_SETTINGS_JS_ENABLED].toBool());
-#if QT_VERSION >= QT_VERSION_CHECK(4, 7, 0)
     opt->setAttribute(QWebSettings::XSSAuditingEnabled, def[PAGE_SETTINGS_XSS_AUDITING].toBool());
-#endif
     opt->setAttribute(QWebSettings::LocalContentCanAccessRemoteUrls, def[PAGE_SETTINGS_LOCAL_ACCESS_REMOTE].toBool());
+    opt->setAttribute(QWebSettings::WebSecurityEnabled, def[PAGE_SETTINGS_WEB_SECURITY_ENABLED].toBool());
 
     if (def.contains(PAGE_SETTINGS_USER_AGENT))
         m_webPage->m_userAgent = def[PAGE_SETTINGS_USER_AGENT].toString();
@@ -284,7 +294,7 @@ QVariantMap WebPage::paperSize() const
 QVariant WebPage::evaluate(const QString &code)
 {
     QString function = "(" + code + ")()";
-    return m_mainFrame->evaluateJavaScript(function);
+    return m_mainFrame->evaluateJavaScript(function, QString("phantomjs://webpage.evaluate()"));
 }
 
 void WebPage::emitAlert(const QString &msg)
@@ -292,15 +302,44 @@ void WebPage::emitAlert(const QString &msg)
     emit javaScriptAlertSent(msg);
 }
 
-void WebPage::emitConsoleMessage(const QString &message, int lineNumber, const QString &source)
+void WebPage::emitConsoleMessage(const QString &message)
 {
-    emit javaScriptConsoleMessageSent(message, lineNumber, source);
+    emit javaScriptConsoleMessageSent(message);
+}
+
+void WebPage::emitError(const QWebPage::JavaScriptError& error)
+{
+    QList<QWebPage::JavaScriptFrame> backtrace = error.backtrace();
+    QVariantList newBacktrace = QVariantList();
+
+    for (int i = 0; i < backtrace.size(); ++i) {
+        QWebPage::JavaScriptFrame frame = backtrace.at(i);
+
+        QVariantMap newFrame = QVariantMap();
+        newFrame["file"] = frame.file();
+        newFrame["line"] = frame.line();
+        newFrame["function"] = frame.function();
+
+        newBacktrace << newFrame;
+    }
+
+    emit javaScriptErrorSent(error.message(), newBacktrace);
 }
 
 void WebPage::finish(bool ok)
 {
     QString status = ok ? "success" : "fail";
     emit loadFinished(status);
+}
+
+void WebPage::setCustomHeaders(const QVariantMap &headers)
+{
+    m_networkAccessManager->setCustomHeaders(headers);
+}
+
+QVariantMap WebPage::customHeaders() const
+{
+    return m_networkAccessManager->customHeaders();
 }
 
 void WebPage::openUrl(const QString &address, const QVariant &op, const QVariantMap &settings)
@@ -336,7 +375,7 @@ void WebPage::openUrl(const QString &address, const QVariant &op, const QVariant
         networkOp = QNetworkAccessManager::DeleteOperation;
 
     if (networkOp == QNetworkAccessManager::UnknownOperation) {
-        m_mainFrame->evaluateJavaScript("console.error('Unknown network operation: " + operation + "');");
+        m_mainFrame->evaluateJavaScript("console.error('Unknown network operation: " + operation + "');", QString());
         return;
     }
 
@@ -344,6 +383,15 @@ void WebPage::openUrl(const QString &address, const QVariant &op, const QVariant
         m_mainFrame->setHtml(BLANK_HTML);
     } else {
         QUrl url = QUrl::fromEncoded(QByteArray(address.toAscii()));
+
+#if QT_VERSION == QT_VERSION_CHECK(4, 8, 0)
+        // Assume local file if scheme is empty
+        if (url.scheme().isEmpty()) {
+            url.setPath(QFileInfo(url.toString()).absoluteFilePath().prepend("/"));
+            url.setScheme("file");
+        }
+#endif
+
         m_mainFrame->load(QNetworkRequest(url), networkOp, body);
     }
 }
@@ -448,6 +496,16 @@ qreal stringToPointSize(const QString &string)
     return 0;
 }
 
+qreal printMargin(const QVariantMap &map, const QString &key)
+{
+    const QVariant margin = map.value(key);
+    if (margin.isValid() && margin.canConvert(QVariant::String)) {
+        return stringToPointSize(margin.toString());
+    } else {
+        return 0;
+    }
+}
+
 bool WebPage::renderPdf(const QString &fileName)
 {
     QPrinter printer;
@@ -460,7 +518,7 @@ bool WebPage::renderPdf(const QString &fileName)
         const QSize pageSize = m_mainFrame->contentsSize();
         paperSize.insert("width", QString::number(pageSize.width()) + "px");
         paperSize.insert("height", QString::number(pageSize.height()) + "px");
-        paperSize.insert("border", "0px");
+        paperSize.insert("margin", "0px");
     }
 
     if (paperSize.contains("width") && paperSize.contains("height")) {
@@ -518,9 +576,34 @@ bool WebPage::renderPdf(const QString &fileName)
         return false;
     }
 
-    const qreal border = paperSize.contains("border") ?
-                floor(stringToPointSize(paperSize.value("border").toString())) : 0;
-    printer.setPageMargins(border, border, border, border, QPrinter::Point);
+    if (paperSize.contains("border") && !paperSize.contains("margin")) {
+        // backwards compatibility
+        paperSize["margin"] = paperSize["border"];
+    }
+
+    qreal marginLeft = 0;
+    qreal marginTop = 0;
+    qreal marginRight = 0;
+    qreal marginBottom = 0;
+
+    if (paperSize.contains("margin")) {
+        const QVariant margins = paperSize["margin"];
+        if (margins.canConvert(QVariant::Map)) {
+            const QVariantMap map = margins.toMap();
+            marginLeft = printMargin(map, "left");
+            marginTop = printMargin(map, "top");
+            marginRight = printMargin(map, "right");
+            marginBottom = printMargin(map, "bottom");
+        } else if (margins.canConvert(QVariant::String)) {
+            const qreal margin = stringToPointSize(margins.toString());
+            marginLeft = margin;
+            marginTop = margin;
+            marginRight = margin;
+            marginBottom = margin;
+        }
+    }
+
+    printer.setPageMargins(marginLeft, marginTop, marginRight, marginBottom, QPrinter::Point);
 
     m_mainFrame->print(&printer);
     return true;
@@ -541,7 +624,7 @@ bool WebPage::injectJs(const QString &jsFilePath) {
 }
 
 void WebPage::_appendScriptElement(const QString &scriptUrl) {
-    m_mainFrame->evaluateJavaScript( QString(JS_APPEND_SCRIPT_ELEMENT).arg(scriptUrl) );
+    m_mainFrame->evaluateJavaScript( QString(JS_APPEND_SCRIPT_ELEMENT).arg(scriptUrl), scriptUrl );
 }
 
 void WebPage::sendEvent(const QString &type, const QVariant &arg1, const QVariant &arg2)
@@ -575,6 +658,34 @@ void WebPage::sendEvent(const QString &type, const QVariant &arg1, const QVarian
         sendEvent("mouseup", arg1, arg2);
         return;
     }
+}
+
+void WebPage::initCompletions()
+{
+    // Add completion for the Dynamic Properties of the 'webpage' object
+    // properties
+    addCompletion("clipRect");
+    addCompletion("content");
+    addCompletion("libraryPath");
+    addCompletion("settings");
+    addCompletion("viewportSize");
+    // functions
+    addCompletion("evaluate");
+    addCompletion("includeJs");
+    addCompletion("injectJs");
+    addCompletion("open");
+    addCompletion("release");
+    addCompletion("render");
+    addCompletion("sendEvent");
+    addCompletion("uploadFile");
+    // callbacks
+    addCompletion("onAlert");
+    addCompletion("onConsoleMessage");
+    addCompletion("onInitialized");
+    addCompletion("onLoadStarted");
+    addCompletion("onLoadFinished");
+    addCompletion("onResourceRequested");
+    addCompletion("onResourceReceived");
 }
 
 #include "webpage.moc"
