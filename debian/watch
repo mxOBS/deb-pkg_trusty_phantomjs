@@ -1,4 +1,4 @@
 version=3
-opts=dversionmangle=s/\+dfsg$//;s/\+repach// \
+opts=dversionmangle=s/\+dfsg$//;s/\+repack// \
  http://code.google.com/p/phantomjs/downloads/list?can=1 .*/phantomjs-(\d[\d\.]*)-source\.(?:tgz|tbz2|txz|tar\.gz|tar\.bz2|tar\.xz)
 
