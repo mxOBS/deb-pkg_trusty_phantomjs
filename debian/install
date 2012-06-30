@@ -1,1 +1,3 @@
-bin/phantomjs usr/bin
+debian/bin/phantomjs usr/bin
+bin/phantomjs usr/lib/phantomjs
+src/qt/lib/lib* usr/lib/phantomjs

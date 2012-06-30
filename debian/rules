@@ -1,15 +1,19 @@
 #!/usr/bin/make -f
 
+QT_CFG=-no-rpath -system-zlib
+
 %:
 	dh $@
 
 override_dh_auto_build:
-	(cd src/qt && ./preconfig.sh && cd ../..)
+	(cd src/qt && ./preconfig.sh --qt-config "$(QT_CFG)" && cd ../..)
 	src/qt/bin/qmake
 	$(MAKE)
 
-#override_dh_auto_install:
-#	$(MAKE) install
+override_dh_auto_clean:
+	dh_auto_clean
+	-$(MAKE) -C src/qt/qmake clean
+	-$(MAKE) -C src/qt/src/3rdparty/webkit/Source clean
 
-#override_dh_auto_clean:
-#	[ ! -f Makefile ] || $(MAKE) distclean
+override_dh_shlibdeps:
+	dh_shlibdeps -l/usr/lib/phantomjs
