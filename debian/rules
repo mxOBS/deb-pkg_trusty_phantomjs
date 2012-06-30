@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
-QT_CFG=-no-rpath -system-zlib -system-libjpeg -system-libpng -system-sqlite \
-	-plugin-sql-sqlite 
+QT_CFG=-no-rpath -system-zlib -system-libjpeg -system-libpng \
+	-no-sql-sqlite
 
 %:
 	dh $@
