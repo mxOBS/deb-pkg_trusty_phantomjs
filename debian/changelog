@@ -1,9 +1,9 @@
-phantomjs (1.6.0-1) UNRELEASED; urgency=low
+phantomjs (1.6.0-1) unstable; urgency=low
 
   * New upstream (Closes: #666397)
   * Drop python-pyphantomjs. It has been removed from upstream.
 
- -- TANIGUCHI Takaki <takaki@debian.org>  Sat, 31 Mar 2012 20:48:11 +0900
+ -- TANIGUCHI Takaki <takaki@debian.org>  Sun, 01 Jul 2012 02:50:03 +0900
 
 phantomjs (1.4.1+dfsg-1) unstable; urgency=low
 
