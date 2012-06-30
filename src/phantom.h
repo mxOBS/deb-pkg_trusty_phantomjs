@@ -58,6 +58,7 @@ public:
     Phantom(QObject *parent = 0);
     virtual ~Phantom();
 
+    void init();
     QStringList args() const;
 
     QVariantMap defaultPageSettings() const;
@@ -77,11 +78,14 @@ public:
 
     QObject* page() const;
 
+    bool printDebugMessages() const;
+
 public slots:
     QObject *createWebPage();
     QObject *createWebServer();
     QObject *createFilesystem();
     QObject *createSystem();
+    QObject *createCallback();
     QString loadModuleSource(const QString &name);
     bool injectJs(const QString &jsFilePath);
 

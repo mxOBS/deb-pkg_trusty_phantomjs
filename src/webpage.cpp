@@ -34,10 +34,12 @@
 
 #include <QApplication>
 #include <QDesktopServices>
+#include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
 #include <QMouseEvent>
 #include <QNetworkAccessManager>
+#include <QNetworkCookie>
 #include <QNetworkRequest>
 #include <QPainter>
 #include <QPrinter>
@@ -45,17 +47,30 @@
 #include <QWebFrame>
 #include <QWebPage>
 #include <QWebInspector>
+#include <QMapIterator>
+#include <QBuffer>
+#include <QDebug>
+#include <QImageWriter>
 
 #include "networkaccessmanager.h"
 #include "utils.h"
+#include "config.h"
 
 #include <gifwriter.h>
 
 #include "consts.h"
+#include "callback.h"
 
 // Ensure we have at least head and body.
-#define BLANK_HTML "<html><head></head><body></body></html>"
+#define BLANK_HTML                      "<html><head></head><body></body></html>"
+#define CALLBACKS_OBJECT_NAME           "_phantom"
+#define INPAGE_CALL_NAME                "window.callPhantom"
+#define CALLBACKS_OBJECT_INJECTION      INPAGE_CALL_NAME" = function() { return window."CALLBACKS_OBJECT_NAME".call.call(_phantom, Array.prototype.splice.call(arguments, 0)); };"
 
+
+/**
+  * @class CustomPage
+  */
 class CustomPage: public QWebPage
 {
     Q_OBJECT
@@ -69,6 +84,17 @@ public:
         setForwardUnsupportedContent(true);
     }
 
+    bool extension(Extension extension, const ExtensionOption* option, ExtensionReturn* output) {
+        Q_UNUSED(option);
+
+        if (extension == ChooseMultipleFilesExtension) {
+            static_cast<ChooseMultipleFilesExtensionReturn*>(output)->fileNames = QStringList(m_uploadFile);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
 public slots:
     bool shouldInterruptJavaScript() {
         QApplication::processEvents(QEventLoop::AllEvents, 42);
@@ -76,6 +102,10 @@ public slots:
     }
 
 protected:
+
+    bool supportsExtension(Extension extension) const {
+        return extension == ChooseMultipleFilesExtension;
+    }
 
     QString chooseFile(QWebFrame *originatingFrame, const QString &oldFile) {
         Q_UNUSED(originatingFrame);
@@ -88,6 +118,16 @@ protected:
         m_webPage->emitAlert(msg);
     }
 
+    bool javaScriptConfirm(QWebFrame *originatingFrame, const QString &msg) {
+        Q_UNUSED(originatingFrame);
+        return m_webPage->javaScriptConfirm(msg);
+    }
+
+    bool javaScriptPrompt(QWebFrame *originatingFrame, const QString &msg, const QString &defaultValue, QString *result) {
+        Q_UNUSED(originatingFrame);
+        return m_webPage->javaScriptPrompt(msg, defaultValue, result);
+    }
+
     void javaScriptConsoleMessage(const QString &message, int lineNumber, const QString &sourceID) {
         Q_UNUSED(lineNumber);
         Q_UNUSED(sourceID);
@@ -95,14 +135,52 @@ protected:
         m_webPage->emitConsoleMessage(message);
     }
 
-    void javaScriptError(const QWebPage::JavaScriptError& error) {
-        m_webPage->emitError(error);
+    void javaScriptError(const QString &message, int lineNumber, const QString &sourceID, const QString &stack) {
+        Q_UNUSED(lineNumber);
+        Q_UNUSED(sourceID);
+
+        m_webPage->emitError(message, stack);
     }
 
     QString userAgentForUrl(const QUrl &url) const {
         Q_UNUSED(url);
         return m_userAgent;
     }
+
+    bool acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, QWebPage::NavigationType type) {
+        bool isMainFrame = (frame == m_webPage->m_mainFrame);
+        // check for all frames (including iframes)
+        //if (frame == m_webPage->m_mainFrame) {
+            QString navigation = "Undefined";
+            switch (type) {
+            case NavigationTypeLinkClicked:
+                navigation = "LinkClicked";
+                break;
+            case NavigationTypeFormSubmitted:
+                navigation = "FormSubmitted";
+                break;
+            case NavigationTypeBackOrForward:
+                navigation = "BackOrForward";
+                break;
+            case NavigationTypeReload:
+                navigation = "Reload";
+                break;
+            case NavigationTypeFormResubmitted:
+                navigation = "FormResubmitted";
+                break;
+            case NavigationTypeOther:
+                navigation = "Other";
+                break;
+            }
+
+            emit m_webPage->navigationRequested(request.url(), navigation, !m_webPage->navigationLocked(), isMainFrame);
+
+            return !m_webPage->navigationLocked();
+        //} else {
+        //    return true;
+        //}
+    }
+
 
 private:
     WebPage *m_webPage;
@@ -112,15 +190,77 @@ private:
 };
 
 
+/**
+  * Contains the Callback Objects used to regulate callback-traffic from the webpage internal context.
+  * It's directly exposed within the webpage JS context,
+  * and indirectly in the phantom JS context.
+  *
+  * @class WebPageCallbacks
+  */
+class WebpageCallbacks : public QObject
+{
+    Q_OBJECT
+
+public:
+    WebpageCallbacks(QObject *parent = 0)
+        : QObject(parent)
+        , m_genericCallback(NULL)
+        , m_jsConfirmCallback(NULL)
+        , m_jsPromptCallback(NULL)
+    {
+    }
+
+    QObject *getGenericCallback() {
+        if (!m_genericCallback) {
+            m_genericCallback = new Callback(this);
+        }
+        return m_genericCallback;
+    }
+
+    QObject *getJsConfirmCallback() {
+        if (!m_jsConfirmCallback) {
+            m_jsConfirmCallback = new Callback(this);
+        }
+        return m_jsConfirmCallback;
+    }
+
+    QObject *getJsPromptCallback() {
+        if (!m_jsPromptCallback) {
+            m_jsPromptCallback = new Callback(this);
+        }
+        return m_jsPromptCallback;
+    }
+
+public slots:
+    QVariant call(const QVariantList &arguments) {
+        if (m_genericCallback) {
+            return m_genericCallback->call(arguments);
+        }
+        return QVariant();
+    }
+
+private:
+    Callback *m_genericCallback;
+    Callback *m_jsConfirmCallback;
+    Callback *m_jsPromptCallback;
+
+    friend class WebPage;
+};
+
+
 WebPage::WebPage(QObject *parent, const Config *config, const QUrl &baseUrl)
     : REPLCompletable(parent)
+    , m_callbacks(NULL)
+    , m_navigationLocked(false)
 {
     setObjectName("WebPage");
     m_webPage = new CustomPage(this);
     m_mainFrame = m_webPage->mainFrame();
     m_mainFrame->setHtml(BLANK_HTML, baseUrl);
 
+    connect(m_mainFrame, SIGNAL(javaScriptWindowObjectCleared()), this, SLOT(handleJavaScriptWindowObjectCleared()));
     connect(m_mainFrame, SIGNAL(javaScriptWindowObjectCleared()), SIGNAL(initialized()));
+    connect(m_mainFrame, SIGNAL(urlChanged(QUrl)), SIGNAL(urlChanged(QUrl)));
     connect(m_webPage, SIGNAL(loadStarted()), SIGNAL(loadStarted()), Qt::QueuedConnection);
     connect(m_webPage, SIGNAL(loadFinished(bool)), SLOT(finish(bool)), Qt::QueuedConnection);
 
@@ -134,7 +274,14 @@ WebPage::WebPage(QObject *parent, const Config *config, const QUrl &baseUrl)
     m_mainFrame->setScrollBarPolicy(Qt::Vertical, Qt::ScrollBarAlwaysOff);
 
     m_webPage->settings()->setAttribute(QWebSettings::OfflineStorageDatabaseEnabled, true);
-    m_webPage->settings()->setOfflineStoragePath(QDesktopServices::storageLocation(QDesktopServices::DataLocation));
+    if (config->offlineStoragePath().isEmpty()) {
+        m_webPage->settings()->setOfflineStoragePath(QDesktopServices::storageLocation(QDesktopServices::DataLocation));
+    } else {
+        m_webPage->settings()->setOfflineStoragePath(config->offlineStoragePath());
+    }
+    if (config->offlineStorageDefaultQuota() > 0) {
+        m_webPage->settings()->setOfflineStorageDefaultQuota(config->offlineStorageDefaultQuota());
+    }
 
     m_webPage->settings()->setAttribute(QWebSettings::OfflineWebApplicationCacheEnabled, true);
     m_webPage->settings()->setOfflineWebApplicationCachePath(QDesktopServices::storageLocation(QDesktopServices::DataLocation));
@@ -185,8 +332,17 @@ void WebPage::setLibraryPath(const QString &libraryPath)
    m_libraryPath = libraryPath;
 }
 
-void
-WebPage::showInspector(const int port)
+QString WebPage::offlineStoragePath() const
+{
+    return m_webPage->settings()->offlineStoragePath();
+}
+
+int WebPage::offlineStorageQuota() const
+{
+    return m_webPage->settings()->offlineStorageDefaultQuota();
+}
+
+void WebPage::showInspector(const int port)
 {
     m_webPage->settings()->setAttribute(QWebSettings::DeveloperExtrasEnabled, true);
     m_inspector = new QWebInspector;
@@ -199,13 +355,11 @@ WebPage::showInspector(const int port)
     }
 }
 
-
 void WebPage::applySettings(const QVariantMap &def)
 {
     QWebSettings *opt = m_webPage->settings();
 
     opt->setAttribute(QWebSettings::AutoLoadImages, def[PAGE_SETTINGS_LOAD_IMAGES].toBool());
-    opt->setAttribute(QWebSettings::PluginsEnabled, def[PAGE_SETTINGS_LOAD_PLUGINS].toBool());
     opt->setAttribute(QWebSettings::JavascriptEnabled, def[PAGE_SETTINGS_JS_ENABLED].toBool());
     opt->setAttribute(QWebSettings::XSSAuditingEnabled, def[PAGE_SETTINGS_XSS_AUDITING].toBool());
     opt->setAttribute(QWebSettings::LocalContentCanAccessRemoteUrls, def[PAGE_SETTINGS_LOCAL_ACCESS_REMOTE].toBool());
@@ -225,6 +379,17 @@ QString WebPage::userAgent() const
 {
     return m_webPage->m_userAgent;
 }
+
+void WebPage::setNavigationLocked(bool lock)
+{
+    m_navigationLocked = lock;;
+}
+
+bool WebPage::navigationLocked()
+{
+    return m_navigationLocked;
+}
+
 
 void WebPage::setViewportSize(const QVariantMap &size)
 {
@@ -291,10 +456,12 @@ QVariantMap WebPage::paperSize() const
     return m_paperSize;
 }
 
-QVariant WebPage::evaluate(const QString &code)
+QVariant WebPage::evaluateJavaScript(const QString &code)
 {
     QString function = "(" + code + ")()";
-    return m_mainFrame->evaluateJavaScript(function, QString("phantomjs://webpage.evaluate()"));
+    return m_webPage->currentFrame()->evaluateJavaScript(
+                function,
+                QString("phantomjs://webpage.evaluate()"));
 }
 
 void WebPage::emitAlert(const QString &msg)
@@ -307,23 +474,32 @@ void WebPage::emitConsoleMessage(const QString &message)
     emit javaScriptConsoleMessageSent(message);
 }
 
-void WebPage::emitError(const QWebPage::JavaScriptError& error)
+void WebPage::emitError(const QString &msg, const QString &stack)
 {
-    QList<QWebPage::JavaScriptFrame> backtrace = error.backtrace();
-    QVariantList newBacktrace = QVariantList();
+    emit javaScriptErrorSent(msg, stack);
+}
 
-    for (int i = 0; i < backtrace.size(); ++i) {
-        QWebPage::JavaScriptFrame frame = backtrace.at(i);
-
-        QVariantMap newFrame = QVariantMap();
-        newFrame["file"] = frame.file();
-        newFrame["line"] = frame.line();
-        newFrame["function"] = frame.function();
-
-        newBacktrace << newFrame;
+bool WebPage::javaScriptConfirm(const QString &msg)
+{
+    if (m_callbacks->m_jsConfirmCallback) {
+        QVariant res = m_callbacks->m_jsConfirmCallback->call(QVariantList() << msg);
+        if (res.canConvert<bool>()) {
+            return res.toBool();
+        }
     }
+    return false;
+}
 
-    emit javaScriptErrorSent(error.message(), newBacktrace);
+bool WebPage::javaScriptPrompt(const QString &msg, const QString &defaultValue, QString *result)
+{
+    if (m_callbacks->m_jsPromptCallback) {
+        QVariant res = m_callbacks->m_jsPromptCallback->call(QVariantList() << msg << defaultValue);
+        if (!res.isNull() && res.canConvert<QString>()) {
+            result->append(res.toString());
+            return true;
+        }
+    }
+    return false;
 }
 
 void WebPage::finish(bool ok)
@@ -342,10 +518,21 @@ QVariantMap WebPage::customHeaders() const
     return m_networkAccessManager->customHeaders();
 }
 
+void WebPage::setCookies(const QVariantList &cookies)
+{
+    m_networkAccessManager->setCookies(cookies);
+}
+
+QVariantList WebPage::cookies() const
+{
+    return m_networkAccessManager->cookies();
+}
+
 void WebPage::openUrl(const QString &address, const QVariant &op, const QVariantMap &settings)
 {
     QString operation;
     QByteArray body;
+    QNetworkRequest request;
 
     applySettings(settings);
     m_webPage->triggerAction(QWebPage::Stop);
@@ -356,6 +543,13 @@ void WebPage::openUrl(const QString &address, const QVariant &op, const QVariant
     if (op.type() == QVariant::Map) {
         operation = op.toMap().value("operation").toString();
         body = op.toMap().value("data").toByteArray();
+        if (op.toMap().contains("headers")) {
+            QMapIterator<QString, QVariant> i(op.toMap().value("headers").toMap());
+            while (i.hasNext()) {
+                i.next();
+                request.setRawHeader(i.key().toUtf8(), i.value().toString().toUtf8());
+            }
+        }
     }
 
     if (operation.isEmpty())
@@ -391,8 +585,8 @@ void WebPage::openUrl(const QString &address, const QVariant &op, const QVariant
             url.setScheme("file");
         }
 #endif
-
-        m_mainFrame->load(QNetworkRequest(url), networkOp, body);
+        request.setUrl(url);
+        m_mainFrame->load(request, networkOp, body);
     }
 }
 
@@ -419,6 +613,29 @@ bool WebPage::render(const QString &fileName)
     }
 
     return buffer.save(fileName);
+}
+
+QString WebPage::renderBase64(const QByteArray &format)
+{
+    QByteArray nformat = format.toLower();
+
+    // Check if the given format is supported
+    if (QImageWriter::supportedImageFormats().contains(nformat)) {
+        QImage rawPageRendering = renderImage();
+
+        // Prepare buffer for writing
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+
+        // Writing image to the buffer, using PNG encoding
+        rawPageRendering.save(&buffer, nformat);
+
+        return bytes.toBase64();
+    }
+
+    // Return an empty string in case an unsupported format was provided
+    return "";
 }
 
 QImage WebPage::renderImage()
@@ -468,7 +685,6 @@ QImage WebPage::renderImage()
     }
 
     m_webPage->setViewportSize(viewportSize);
-
     return buffer;
 }
 
@@ -605,13 +821,76 @@ bool WebPage::renderPdf(const QString &fileName)
 
     printer.setPageMargins(marginLeft, marginTop, marginRight, marginBottom, QPrinter::Point);
 
-    m_mainFrame->print(&printer);
+    m_mainFrame->print(&printer, this);
     return true;
+}
+
+void WebPage::setZoomFactor(qreal zoom)
+{
+    m_mainFrame->setZoomFactor(zoom);
+}
+
+qreal WebPage::zoomFactor() const
+{
+    return m_mainFrame->zoomFactor();
+}
+
+qreal getHeight(const QVariantMap &map, const QString &key)
+{
+    QVariant footer = map.value(key);
+    if (!footer.canConvert(QVariant::Map)) {
+        return 0;
+    }
+    QVariant height = footer.toMap().value("height");
+    if (!height.canConvert(QVariant::String)) {
+        return 0;
+    }
+    return stringToPointSize(height.toString());
+}
+
+qreal WebPage::footerHeight() const
+{
+    return getHeight(m_paperSize, "footer");
+}
+
+qreal WebPage::headerHeight() const
+{
+    return getHeight(m_paperSize, "header");
+}
+
+QString getHeaderFooter(const QVariantMap &map, const QString &key, QWebFrame *frame, int page, int numPages)
+{
+    QVariant header = map.value(key);
+    if (!header.canConvert(QVariant::Map)) {
+        return QString();
+    }
+    QVariant callback = header.toMap().value("contents");
+    if (callback.canConvert<QObject*>()) {
+        Callback* caller = qobject_cast<Callback*>(callback.value<QObject*>());
+        if (caller) {
+            QVariant ret = caller->call(QVariantList() << page << numPages);
+            if (ret.canConvert(QVariant::String)) {
+                return ret.toString();
+            }
+        }
+    }
+    frame->evaluateJavaScript("console.error('Bad header callback given, use phantom.callback);", QString());
+    return QString();
+}
+
+QString WebPage::header(int page, int numPages)
+{
+    return getHeaderFooter(m_paperSize, "header", m_mainFrame, page, numPages);
+}
+
+QString WebPage::footer(int page, int numPages)
+{
+    return getHeaderFooter(m_paperSize, "footer", m_mainFrame, page, numPages);
 }
 
 void WebPage::uploadFile(const QString &selector, const QString &fileName)
 {
-    QWebElement el = m_mainFrame->findFirstElement(selector);
+    QWebElement el = m_webPage->currentFrame()->findFirstElement(selector);
     if (el.isNull())
         return;
 
@@ -620,11 +899,35 @@ void WebPage::uploadFile(const QString &selector, const QString &fileName)
 }
 
 bool WebPage::injectJs(const QString &jsFilePath) {
-    return Utils::injectJsInFrame(jsFilePath, m_libraryPath, m_mainFrame);
+    return Utils::injectJsInFrame(jsFilePath, m_libraryPath, m_webPage->currentFrame());
 }
 
 void WebPage::_appendScriptElement(const QString &scriptUrl) {
-    m_mainFrame->evaluateJavaScript( QString(JS_APPEND_SCRIPT_ELEMENT).arg(scriptUrl), scriptUrl );
+    m_webPage->currentFrame()->evaluateJavaScript(QString(JS_APPEND_SCRIPT_ELEMENT).arg(scriptUrl), scriptUrl);
+}
+
+QObject *WebPage::_getGenericCallback() {
+    if (!m_callbacks) {
+        m_callbacks = new WebpageCallbacks(this);
+    }
+
+    return m_callbacks->getGenericCallback();
+}
+
+QObject *WebPage::_getJsConfirmCallback() {
+    if (!m_callbacks) {
+        m_callbacks = new WebpageCallbacks(this);
+    }
+
+    return m_callbacks->getJsConfirmCallback();
+}
+
+QObject *WebPage::_getJsPromptCallback() {
+    if (!m_callbacks) {
+        m_callbacks = new WebpageCallbacks(this);
+    }
+
+    return m_callbacks->getJsPromptCallback();
 }
 
 void WebPage::sendEvent(const QString &type, const QVariant &arg1, const QVariant &arg2)
@@ -660,6 +963,60 @@ void WebPage::sendEvent(const QString &type, const QVariant &arg1, const QVarian
     }
 }
 
+int WebPage::childFramesCount()
+{
+    return m_webPage->currentFrame()->childFrames().count();
+}
+
+QVariantList WebPage::childFramesName()
+{
+    QVariantList framesName;
+
+    foreach(QWebFrame * f, m_webPage->currentFrame()->childFrames()) {
+        framesName << f->frameName();
+    }
+    return framesName;
+}
+
+bool WebPage::switchToChildFrame(const QString &frameName)
+{
+    foreach(QWebFrame * f, m_webPage->currentFrame()->childFrames()) {
+        if (f->frameName() == frameName) {
+            f->setFocus();
+            return true;
+        }
+    }
+    return false;
+}
+
+bool WebPage::switchToChildFrame(const int framePosition)
+{
+    if (framePosition >= 0 && framePosition < m_webPage->currentFrame()->childFrames().size()) {
+        m_webPage->currentFrame()->childFrames().at(framePosition)->setFocus();
+        return true;
+    }
+    return false;
+}
+
+void WebPage::switchToMainFrame()
+{
+    m_mainFrame->setFocus();
+}
+
+bool WebPage::switchToParentFrame()
+{
+    if (m_webPage->currentFrame()->parentFrame() != NULL) {
+        m_webPage->currentFrame()->parentFrame()->setFocus();
+        return true;
+    }
+    return false;
+}
+
+QString WebPage::currentFrameName()
+{
+    return m_webPage->currentFrame()->frameName();
+}
+
 void WebPage::initCompletions()
 {
     // Add completion for the Dynamic Properties of the 'webpage' object
@@ -678,14 +1035,47 @@ void WebPage::initCompletions()
     addCompletion("render");
     addCompletion("sendEvent");
     addCompletion("uploadFile");
+    addCompletion("renderBase64PNG");
+    addCompletion("renderBase64JPG");
+    addCompletion("renderBase64BMP");
+    addCompletion("childFramesCount");
+    addCompletion("childFramesName");
+    addCompletion("switchToChildFrame");
+    addCompletion("switchToMainFrame");
+    addCompletion("switchToParentFrame");
+    addCompletion("currentFrameName");
     // callbacks
     addCompletion("onAlert");
+    addCompletion("onCallback");
+    addCompletion("onPrompt");
+    addCompletion("onConfirm");
     addCompletion("onConsoleMessage");
     addCompletion("onInitialized");
     addCompletion("onLoadStarted");
     addCompletion("onLoadFinished");
     addCompletion("onResourceRequested");
     addCompletion("onResourceReceived");
+}
+
+void WebPage::handleJavaScriptWindowObjectCleared()
+{
+    // Create Callbacks Holder object, if not already present for this page
+    if (!m_callbacks) {
+        m_callbacks = new WebpageCallbacks(this);
+    }
+
+    // Reset focus on the Main Frame
+    m_mainFrame->setFocus();
+
+    // Decorate the window object in the Main Frame
+    m_mainFrame->addToJavaScriptWindowObject(CALLBACKS_OBJECT_NAME, m_callbacks, QScriptEngine::QtOwnership);
+    m_mainFrame->evaluateJavaScript(CALLBACKS_OBJECT_INJECTION);
+
+    // Decorate the window object in the Main Frame's Child Frames
+    foreach (QWebFrame *childFrame, m_mainFrame->childFrames()) {
+        childFrame->addToJavaScriptWindowObject(CALLBACKS_OBJECT_NAME, m_callbacks, QScriptEngine::QtOwnership);
+        childFrame->evaluateJavaScript(CALLBACKS_OBJECT_INJECTION);
+    }
 }
 
 #include "webpage.moc"
