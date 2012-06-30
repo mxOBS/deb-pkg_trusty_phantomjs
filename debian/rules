@@ -1,5 +1,4 @@
 #!/usr/bin/make -f
-<<<<<<< HEAD
 # -*- makefile -*-
 # Sample debian/rules that uses debhelper.
 # This file was originally written by Joey Hess and Craig Small.
@@ -12,16 +11,10 @@
 
 %:
 	dh $@ --with python2
-=======
-
-%:
-	dh $@
->>>>>>> Imported Upstream version 1.6.0
 
 override_dh_auto_build:
 	qmake-qt4
 	$(MAKE)
-<<<<<<< HEAD
 #	dh_auto_build -Dpython
 
 #override_dh_auto_install:
@@ -29,16 +22,3 @@ override_dh_auto_build:
 
 #override_dh_auto_clean:
 #	[ ! -f Makefile ] || $(MAKE) distclean
-=======
-	cd python && python setup.py build
-
-override_dh_auto_install:
-	$(MAKE) install
-	mkdir -p debian/tmp/usr/bin
-	cp bin/* debian/tmp/usr/bin
-	cd python && python setup.py install --root=../debian/tmp --install-layout=deb
-
-override_dh_auto_clean:
-	if [ -f Makefile ]; then $(MAKE) distclean; fi
-	cd python && python setup.py clean
->>>>>>> Imported Upstream version 1.6.0

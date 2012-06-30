@@ -1,5 +1,4 @@
 Source: phantomjs
-<<<<<<< HEAD
 Section: web
 Priority: extra
 Maintainer: TANIGUCHI Takaki <takaki@debian.org>
@@ -15,20 +14,10 @@ Standards-Version: 3.9.2
 Homepage: http://www.phantomjs.org/
 Vcs-Git: git://git.debian.org/collab-maint/phantomjs.git
 Vcs-Browser: http://git.debian.org/?p=collab-maint/phantomjs.git;a=summary
-=======
-Section: python
-Priority: extra
-Maintainer: Dennis Kaarsemaker <dennis@kaarsemaker.net>
-Build-Depends: debhelper (>= 7), libqt4-dev (>= 4.6), libqtwebkit-dev, qt4-qmake, python-support (>= 0.6.4), python-all-dev (>= 2.5), python-qt4-dev, python-qt4
-Standards-Version: 3.8.4
-XS-Python-Version: >= 2.6
-Vcs-Git: http://github.com/ariya/phantomjs
->>>>>>> Imported Upstream version 1.6.0
 
 Package: phantomjs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-<<<<<<< HEAD
 Description: minimalistic headless WebKit-based with JavaScript API
  PhantomJS is a headless WebKit with JavaScript API. It has fast and native
  support for various web standards: DOM handling, CSS selector, JSON, Canvas,
@@ -37,17 +26,3 @@ Description: minimalistic headless WebKit-based with JavaScript API
  PhantomJS is an optimal solution for headless testing of web-based
  applications, site scraping, pages capture, SVG renderer, PDF converter
  and many other use cases.
-=======
-Description: phantomjs - minimalistic headless WebKit-based JavaScript-driven tool
- PhantomJS is a minimalistic, headless, WebKit-based, JavaScript-driven tool.
- PhantomJs has native support for different web technologies: DOM handling,
- CSS selector, JSON, Canvas, SVG, and of course JavaScript.
-
-Package: python-pyphantomjs
-Architecture: all
-Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}, python-qt4, python-argparse
-Description: phantomjs - minimalistic headless WebKit-based JavaScript-driven tool
- PhantomJS is a minimalistic, headless, WebKit-based, JavaScript-driven tool.
- PhantomJs has native support for different web technologies: DOM handling,
- CSS selector, JSON, Canvas, SVG, and of course JavaScript.
->>>>>>> Imported Upstream version 1.6.0
