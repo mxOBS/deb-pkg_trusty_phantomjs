@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-QT_CFG=-no-rpath -system-zlib
+QT_CFG=-no-rpath -system-zlib -system-libjpeg -system-libpng -system-sqlite
 
 %:
 	dh $@

@@ -64,3 +64,5 @@ src/qt/lib/libjscore.a
 src/qt/lib/libwebcore.a
 src/qt/src/3rdparty/webkit/Source/JavaScriptCore/release/libjscore.a
 src/qt/src/3rdparty/webkit/Source/WebCore/release/libwebcore.a
+src/qt/.qmake.vars
+
