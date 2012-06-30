@@ -74,14 +74,6 @@ void Config::processArgs(const QStringList &args)
             setAutoLoadImages(false);
             continue;
         }
-        if (arg == "--load-plugins=yes") {
-            setPluginsEnabled(true);
-            continue;
-        }
-        if (arg == "--load-plugins=no") {
-            setPluginsEnabled(false);
-            continue;
-        }
         if (arg == "--disk-cache=yes") {
             setDiskCacheEnabled(true);
             continue;
@@ -126,6 +118,14 @@ void Config::processArgs(const QStringList &args)
             setCookiesFile(arg.mid(15).trimmed());
             continue;
         }
+        if (arg.startsWith("--local-storage-path=")) {
+            setOfflineStoragePath(arg.mid(21).trimmed());
+            continue;
+        }
+        if (arg.startsWith("--local-storage-quota=")) {
+            setOfflineStorageDefaultQuota(arg.mid(arg.indexOf("=") + 1).trimmed().toInt());
+            continue;
+        }
         if (arg.startsWith("--output-encoding=")) {
             setOutputEncoding(arg.mid(18).trimmed());
             continue;
@@ -158,6 +158,14 @@ void Config::processArgs(const QStringList &args)
         }
         if (arg == "--web-security=no") {
             setWebSecurityEnabled(false);
+            continue;
+        }
+        if (arg == "--debug=yes") {
+            setPrintDebugMessages(true);
+            continue;
+        }
+        if (arg == "--debug=no") {
+            setPrintDebugMessages(false);
             continue;
         }
         if (arg.startsWith("--")) {
@@ -228,6 +236,27 @@ void Config::setCookiesFile(const QString &value)
     m_cookiesFile = value;
 }
 
+QString Config::offlineStoragePath() const
+{
+    return m_offlineStoragePath;
+}
+
+void Config::setOfflineStoragePath(const QString &value)
+{
+    QDir dir(value);
+    m_offlineStoragePath = dir.absolutePath();
+}
+
+int Config::offlineStorageDefaultQuota() const
+{
+    return m_offlineStorageDefaultQuota;
+}
+
+void Config::setOfflineStorageDefaultQuota(int offlineStorageDefaultQuota)
+{
+    m_offlineStorageDefaultQuota = offlineStorageDefaultQuota * 1024;
+}
+
 bool Config::diskCacheEnabled() const
 {
     return m_diskCacheEnabled;
@@ -280,16 +309,6 @@ void Config::setOutputEncoding(const QString &value)
     }
 
     m_outputEncoding = value;
-}
-
-bool Config::pluginsEnabled() const
-{
-    return m_pluginsEnabled;
-}
-
-void Config::setPluginsEnabled(const bool value)
-{
-    m_pluginsEnabled = value;
 }
 
 QString Config::proxyType() const
@@ -468,12 +487,13 @@ void Config::resetToDefaults()
 {
     m_autoLoadImages = true;
     m_cookiesFile = QString();
+    m_offlineStoragePath = QString();
+    m_offlineStorageDefaultQuota = -1;
     m_diskCacheEnabled = false;
     m_maxDiskCacheSize = -1;
     m_ignoreSslErrors = false;
     m_localToRemoteUrlAccessEnabled = false;
     m_outputEncoding = "UTF-8";
-    m_pluginsEnabled = false;
     m_proxyType = "http";
     m_proxyHost.clear();
     m_proxyPort = 1080;
@@ -489,6 +509,7 @@ void Config::resetToDefaults()
     m_remoteDebugAutorun = false;
     m_webSecurityEnabled = true;
     m_helpFlag = false;
+    m_printDebugMessages = false;
 }
 
 void Config::setProxyAuthPass(const QString &value)
@@ -519,4 +540,14 @@ bool Config::helpFlag() const
 void Config::setHelpFlag(const bool value)
 {
     m_helpFlag = value;
+}
+
+bool Config::printDebugMessages() const
+{
+    return m_printDebugMessages;
+}
+
+void Config::setPrintDebugMessages(const bool value)
+{
+    m_printDebugMessages = value;
 }

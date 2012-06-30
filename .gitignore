@@ -11,6 +11,7 @@ qrc_*
 *.o
 *.swp
 *.pyc
+*.a
 debian/*.debhelper
 debian/files
 debian/*.log
@@ -19,6 +20,8 @@ python/build/
 python/*.egg-info/
 /deploy/qt-*.tar.gz
 /deploy/Qt-*
+/symbols
 
 # ignore ctags
 /tags
+tools/dump_syms.app/

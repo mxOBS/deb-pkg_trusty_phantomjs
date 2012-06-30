@@ -40,6 +40,7 @@
 
 QTemporaryFile* Utils::m_tempHarness = 0;
 QTemporaryFile* Utils::m_tempWrapper = 0;
+bool Utils::printDebugMessages = false;
 
 // public:
 void Utils::showUsage()
@@ -52,14 +53,16 @@ void Utils::messageHandler(QtMsgType type, const char *msg)
     QDateTime now = QDateTime::currentDateTime();
 
     switch (type) {
-#ifndef QT_NO_DEBUG
     case QtDebugMsg:
-        fprintf(stdout, "%s [DEBUG] %s\n", qPrintable(now.toString(Qt::ISODate)), msg);
+        if (printDebugMessages) {
+            fprintf(stderr, "%s [DEBUG] %s\n", qPrintable(now.toString(Qt::ISODate)), msg);
+        }
         break;
     case QtWarningMsg:
-        fprintf(stderr, "%s [WARNING] %s\n", qPrintable(now.toString(Qt::ISODate)), msg);
+        if (printDebugMessages) {
+            fprintf(stderr, "%s [WARNING] %s\n", qPrintable(now.toString(Qt::ISODate)), msg);
+        }
         break;
-#endif
     case QtCriticalMsg:
         fprintf(stderr, "%s [CRITICAL] %s\n", qPrintable(now.toString(Qt::ISODate)), msg);
         break;
@@ -67,6 +70,16 @@ void Utils::messageHandler(QtMsgType type, const char *msg)
         fprintf(stderr, "%s [FATAL] %s\n", qPrintable(now.toString(Qt::ISODate)), msg);
         abort();
     }
+}
+
+bool Utils::exceptionHandler(const char* dump_path, const char* minidump_id, void* context, bool succeeded)
+{
+    Q_UNUSED(context);
+    fprintf(stderr, "PhantomJS has crashed. Please file a bug report at " \
+                    "https://code.google.com/p/phantomjs/issues/entry and " \
+                    "attach the crash dump file: %s/%s.dmp\n",
+                    dump_path, minidump_id);
+    return succeeded;
 }
 
 QVariant Utils::coffee2js(const QString &script)
