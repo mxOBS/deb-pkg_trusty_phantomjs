@@ -1,4 +1,4 @@
-phantomjs (1.5.0+repack-1) UNRELEASED; urgency=low
+phantomjs (1.6.0-1) UNRELEASED; urgency=low
 
   * New upstream (Closes: #666397)
   * Drop python-pyphantomjs. It has been removed from upstream.
