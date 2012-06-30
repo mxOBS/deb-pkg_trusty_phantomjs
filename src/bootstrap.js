@@ -54,33 +54,53 @@ function require(name) {
     }
 }
 
-(function() {
+phantom.__defineErrorSetter__ = function(obj, page) {
     var handler;
-    var signal = phantom.page.javaScriptErrorSent;
+    var signal = page.javaScriptErrorSent;
 
-    phantom.__defineSetter__('onError', function(f) {
+    obj.__defineSetter__('onError', function(f) {
         if (handler && typeof handler === 'function') {
-            try { signal.disconnect(handler) } catch (e) {}
+            try { signal.disconnect(handler); }
+            catch (e) {}
         }
-
-        handler = f;
 
         if (typeof f === 'function') {
-            signal.connect(f);
+            handler = function(message, stack) {
+              stack = JSON.parse(stack).map(function(item) {
+                  return { file: item.url, line: item.lineNumber, function: item.functionName }
+              });
+
+              f(message, stack);
+            };
+            signal.connect(handler);
+        } else {
+            handler = null;
         }
-    })
-})();
+    });
+};
+
+phantom.__defineErrorSetter__(phantom, phantom.page);
 
 // TODO: Make this output to STDERR
-phantom.defaultErrorHandler = function(error, backtrace) {
-    console.log(error + "\n");
+phantom.defaultErrorHandler = function(message, stack) {
+    console.log(message + "\n");
 
-    backtrace.forEach(function(item) {
+    stack.forEach(function(item) {
         var message = item.file + ":" + item.line;
-        if (item.function) message += " in " + item.function
+        if (item.function)
+            message += " in " + item.function;
         console.log("  " + message);
-    })
-}
+    });
+};
+
+phantom.callback = function(callback) {
+    var ret = phantom.createCallback();
+    ret.called.connect(function(args) {
+        var retVal = callback.apply(this, args);
+        ret.returnValue = retVal;
+    });
+    return ret;
+};
 
 phantom.onError = phantom.defaultErrorHandler;
 

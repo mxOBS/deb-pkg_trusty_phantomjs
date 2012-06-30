@@ -61,6 +61,8 @@
 #include "SecurityOrigin.h"
 #include "ViewportArguments.h"
 #include "WindowFeatures.h"
+#include "ScriptCallStack.h"
+#include "InspectorValues.h"
 
 #include "qgraphicswebview.h"
 #include "qwebframe_p.h"
@@ -294,12 +296,18 @@ void ChromeClientQt::setResizable(bool)
     notImplemented();
 }
 
-void ChromeClientQt::addMessageToConsole(MessageSource, MessageType, MessageLevel, const String& message,
-                                         unsigned int lineNumber, const String& sourceID)
+void ChromeClientQt::addMessageToConsole(MessageSource src, MessageType type, MessageLevel level, const String& message,
+                                         unsigned int lineNumber, const String& sourceID, PassRefPtr<ScriptCallStack> callStack)
 {
     QString x = message;
     QString y = sourceID;
-    m_webPage->javaScriptConsoleMessage(x, lineNumber, y);
+
+    if (src == JSMessageSource && type == UncaughtExceptionMessageType && level == ErrorMessageLevel) {
+        QString stack = callStack->buildInspectorArray()->toJSONString();
+        m_webPage->javaScriptError(x, lineNumber, y, stack);
+    } else {
+        m_webPage->javaScriptConsoleMessage(x, lineNumber, y);
+    }
 }
 
 void ChromeClientQt::chromeDestroyed()

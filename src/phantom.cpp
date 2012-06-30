@@ -43,6 +43,7 @@
 #include "webserver.h"
 #include "repl.h"
 #include "system.h"
+#include "callback.h"
 
 
 // public:
@@ -60,7 +61,10 @@ Phantom::Phantom(QObject *parent)
     args.removeFirst();
 
     m_config.init(&args);
+}
 
+void Phantom::init()
+{
     if (m_config.helpFlag()) {
         m_terminated = true;
         Utils::showUsage();
@@ -113,7 +117,6 @@ Phantom::Phantom(QObject *parent)
             SLOT(onInitialized()));
 
     m_defaultPageSettings[PAGE_SETTINGS_LOAD_IMAGES] = QVariant::fromValue(m_config.autoLoadImages());
-    m_defaultPageSettings[PAGE_SETTINGS_LOAD_PLUGINS] = QVariant::fromValue(m_config.pluginsEnabled());
     m_defaultPageSettings[PAGE_SETTINGS_JS_ENABLED] = QVariant::fromValue(true);
     m_defaultPageSettings[PAGE_SETTINGS_XSS_AUDITING] = QVariant::fromValue(false);
     m_defaultPageSettings[PAGE_SETTINGS_USER_AGENT] = QVariant::fromValue(m_page->userAgent());
@@ -211,6 +214,11 @@ QObject *Phantom::page() const
     return m_page;
 }
 
+bool Phantom::printDebugMessages() const
+{
+    return m_config.printDebugMessages();
+}
+
 // public slots:
 QObject *Phantom::createWebPage()
 {
@@ -256,6 +264,11 @@ QObject *Phantom::createSystem()
     }
 
     return m_system;
+}
+
+QObject* Phantom::createCallback()
+{
+    return new Callback(this);
 }
 
 QString Phantom::loadModuleSource(const QString &name)

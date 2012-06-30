@@ -53,6 +53,7 @@
 #include <runtime/DateInstance.h>
 #include <runtime/Error.h>
 #include <runtime/JSFunction.h>
+#include "ScriptCallStackFactory.h"
 
 using namespace JSC;
 
@@ -185,7 +186,30 @@ void reportException(ExecState* exec, JSValue exception)
     if (!scriptExecutionContext)
         return;
 
-    scriptExecutionContext->reportException(ustringToString(errorMessage), lineNumber, ustringToString(exceptionSourceURL), 0);
+    JSValue exceptionStackArrayValue = exceptionObject->get(exec, Identifier(exec, "stackArray"));
+    Vector<ScriptCallFrame> frames;
+
+    if (!exceptionStackArrayValue.isUndefined()) {
+        JSArray* exceptionStackArray = asArray(exceptionStackArrayValue);
+
+        for (unsigned i = 0, l = exceptionStackArray->length(); i < l; i++) {
+            JSValue jsFrame = exceptionStackArray->getIndex(i);
+
+            UString frameSourceURL = jsFrame.get(exec, Identifier(exec, "sourceURL")).toString(exec);
+            int frameLineNumber = jsFrame.get(exec, Identifier(exec, "line")).toInt32(exec);
+
+            JSValue frameFunctionName = jsFrame.get(exec, Identifier(exec, "function"));
+            String frameFunctionNameString;
+
+            if (!frameFunctionName.isUndefined()) {
+                frameFunctionNameString = ustringToString(frameFunctionName.toString(exec));
+            }
+
+            frames.append(ScriptCallFrame(frameFunctionNameString, ustringToString(frameSourceURL), frameLineNumber));
+        }
+    }
+
+    scriptExecutionContext->reportException(ustringToString(errorMessage), lineNumber, ustringToString(exceptionSourceURL), ScriptCallStack::create(frames));
 }
 
 void reportCurrentException(ExecState* exec)

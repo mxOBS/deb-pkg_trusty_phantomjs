@@ -32,12 +32,16 @@
 #include "JSString.h"
 #include "NativeErrorConstructor.h"
 #include "SourceCode.h"
+#include "CodeBlock.h"
+#include "UStringBuilder.h"
 
 namespace JSC {
 
 static const char* linePropertyName = "line";
 static const char* sourceIdPropertyName = "sourceId";
 static const char* sourceURLPropertyName = "sourceURL";
+static const char* stackPropertyName = "stack";
+static const char* functionPropertyName = "function";
 
 JSObject* createError(JSGlobalObject* globalObject, const UString& message)
 {
@@ -133,7 +137,87 @@ JSObject* addErrorInfo(JSGlobalData* globalData, JSObject* error, int line, cons
 
 JSObject* addErrorInfo(ExecState* exec, JSObject* error, int line, const SourceCode& source)
 {
-    return addErrorInfo(&exec->globalData(), error, line, source);
+    JSGlobalData* globalData = &exec->globalData();
+
+    addErrorInfo(globalData, error, line, source);
+
+    UStringBuilder stackString;
+    JSArray* stackArray = constructEmptyArray(exec);
+    CallFrame* frame = exec;
+
+    stackString.append(error->toString(exec));
+
+    bool functionKnown;
+    ReturnAddressPtr pc;
+
+    while (!frame->hasHostCallFrameFlag()) {
+        CodeBlock* codeBlock = frame->codeBlock();
+        JSObject* arrayItem = constructEmptyObject(exec);
+
+        stackString.append("\n    at ");
+
+        JSObject* callee = frame->callee();
+        UString functionName;
+
+        if (callee && callee->inherits(&JSFunction::s_info)) {
+            functionName = asFunction(callee)->calculatedDisplayName(exec);
+            functionKnown = !functionName.isEmpty();
+        } else {
+            functionKnown = false;
+        }
+
+        if (functionKnown) {
+            stackString.append(functionName);
+            stackString.append(" (");
+
+            arrayItem->putWithAttributes(
+                globalData, Identifier(globalData, functionPropertyName),
+                jsString(globalData, functionName), ReadOnly | DontDelete
+            );
+        }
+
+        UString sourceURL = codeBlock->ownerExecutable()->sourceURL();
+
+        arrayItem->putWithAttributes(
+            globalData, Identifier(globalData, sourceURLPropertyName),
+            jsString(globalData, sourceURL), ReadOnly | DontDelete
+        );
+
+        stackString.append(sourceURL);
+        stackString.append(":");
+
+        if (frame != exec) {
+            line = codeBlock->lineNumberForBytecodeOffset(codeBlock->bytecodeOffset(pc));
+        }
+
+        arrayItem->putWithAttributes(
+            globalData, Identifier(globalData, linePropertyName),
+            jsNumber(line), ReadOnly | DontDelete
+        );
+
+        stackString.append(UString::number(line));
+
+        if (functionKnown) {
+            stackString.append(")");
+        }
+
+        stackArray->push(exec, JSValue(arrayItem));
+
+        pc = frame->returnPC();
+        frame = frame->callerFrame();
+    }
+
+    error->putWithAttributes(
+        globalData, Identifier(globalData, stackPropertyName),
+        jsString(globalData, stackString.toUString()), ReadOnly | DontDelete
+    );
+
+    error->putWithAttributes(
+        globalData, Identifier(globalData, "stackArray"),
+        stackArray, ReadOnly | DontDelete
+    );
+
+    return error;
 }
 
 bool hasErrorInfo(ExecState* exec, JSObject* error)
