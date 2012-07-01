@@ -1,3 +1,9 @@
+phantomjs (1.6.0-2) UNRELEASED; urgency=low
+
+  * dummy 
+
+ -- TANIGUCHI Takaki <takaki@debian.org>  Sun, 01 Jul 2012 09:46:16 +0900
+
 phantomjs (1.6.0-1) unstable; urgency=low
 
   * New upstream (Closes: #666397)
