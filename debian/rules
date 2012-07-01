@@ -1,5 +1,14 @@
 #!/usr/bin/make -f
 
+include /usr/share/hardening-includes/hardening.make
+
+CFLAGS=$(shell dpkg-buildflags --get CFLAGS)
+CXXFLAGS=$(shell dpkg-buildflags --get CXXFLAGS)
+LDFLAGS=$(shell dpkg-buildflags --get LDFLAGS)
+CFLAGS+=$(HARDENING_CFLAGS)
+CXXFLAGS+=$(HARDENING_CXXFLAGS)
+LDFLAGS+=$(HARDENING_LDFLAGS)
+
 QT_CFG=-no-rpath -system-zlib -system-libjpeg -system-libpng \
 	-no-sql-sqlite
 
@@ -13,8 +22,9 @@ override_dh_auto_build:
 
 override_dh_auto_clean:
 	dh_auto_clean
-	-$(MAKE) -C src/qt/qmake clean
-	-$(MAKE) -C src/qt/src/3rdparty/webkit/Source clean
+	for i in src/qt/qmake src/qt/src/3rdparty/webkit/Source; do \
+		[ ! -f $${i}/Makefile ] || $(MAKE) -C $${i} distclean ;\
+	done
 
 override_dh_shlibdeps:
 	dh_shlibdeps -l/usr/lib/phantomjs

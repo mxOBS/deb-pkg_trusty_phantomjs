@@ -1,6 +1,7 @@
 phantomjs (1.6.0-2) UNRELEASED; urgency=low
 
-  * dummy 
+  * Bump Standards-Version to 3.9.3. 
+  * debian/rules: add hardening options. 
 
  -- TANIGUCHI Takaki <takaki@debian.org>  Sun, 01 Jul 2012 09:46:16 +0900
 
