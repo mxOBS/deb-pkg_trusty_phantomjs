@@ -10,7 +10,7 @@ CXXFLAGS+=$(HARDENING_CXXFLAGS)
 LDFLAGS+=$(HARDENING_LDFLAGS)
 
 QT_CFG=-no-rpath -system-zlib -system-libjpeg -system-libpng \
-	-no-sql-sqlite
+	-system-sqlite -plugin-sql-sqlite 
 
 %:
 	dh $@
