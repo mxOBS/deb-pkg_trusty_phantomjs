@@ -4,7 +4,7 @@ Priority: extra
 Maintainer: TANIGUCHI Takaki <takaki@debian.org>
 Build-Depends: debhelper (>= 7.0.50~),
 #	qt4-qmake, 
-#	libqt4-dev,
+	libqt4-dev,
 #	libqtwebkit-dev, 
 #	python-setuptools,
 #	python-support,
