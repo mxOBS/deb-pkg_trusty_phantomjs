@@ -1,19 +1,22 @@
 #!/usr/bin/make -f
 
-include /usr/share/hardening-includes/hardening.make
+# include /usr/share/hardening-includes/hardening.make
 
-CFLAGS=$(shell dpkg-buildflags --get CFLAGS)
-CXXFLAGS=$(shell dpkg-buildflags --get CXXFLAGS)
-LDFLAGS=$(shell dpkg-buildflags --get LDFLAGS)
-CFLAGS+=$(HARDENING_CFLAGS)
-CXXFLAGS+=$(HARDENING_CXXFLAGS)
-LDFLAGS+=$(HARDENING_LDFLAGS)
+# CFLAGS=$(shell dpkg-buildflags --get CFLAGS)
+# CXXFLAGS=$(shell dpkg-buildflags --get CXXFLAGS)
+# LDFLAGS=$(shell dpkg-buildflags --get LDFLAGS)
+# CFLAGS+=$(HARDENING_CFLAGS)
+# CXXFLAGS+=$(HARDENING_CXXFLAGS)
+# LDFLAGS+=$(HARDENING_LDFLAGS)
 
 QT_CFG=-no-rpath -system-zlib -system-libjpeg -system-libpng \
 	-system-sqlite -plugin-sql-sqlite 
 
 %:
 	dh $@
+
+override_dh_auto_configure:
+	true
 
 override_dh_auto_build:
 	(cd src/qt && ./preconfig.sh --qt-config "$(QT_CFG)" && cd ../..)
