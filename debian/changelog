@@ -1,10 +1,10 @@
-phantomjs (1.6.0-2) UNRELEASED; urgency=low
+phantomjs (1.6.0-2) unstable; urgency=low
 
   * Bump Standards-Version to 3.9.3. 
   * debian/rules: add hardening options. 
   * debian/control: Add some devel libraries to B-D. (Closes: #679760)
 
- -- TANIGUCHI Takaki <takaki@debian.org>  Sun, 01 Jul 2012 09:46:16 +0900
+ -- TANIGUCHI Takaki <takaki@debian.org>  Tue, 03 Jul 2012 21:32:47 +0900
 
 phantomjs (1.6.0-1) unstable; urgency=low
 
