@@ -1,6 +1,7 @@
 phantomjs (1.6.0-3) UNRELEASED; urgency=low
 
   * debian/patches/return_build_error: To fail after build error immediately.
+  * debian/control: libx11-dev and libxext-dev to Build-Depends. 
 
  -- TANIGUCHI Takaki <takaki@debian.org>  Wed, 04 Jul 2012 23:07:30 +0900
 
