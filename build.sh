@@ -57,6 +57,6 @@ until [ -z "$1" ]; do
     esac
 done
 
-cd src/qt && ./preconfig.sh --jobs $COMPILE_JOBS --qt-config "$QT_CFG" && cd ../..
+cd src/qt && bash -e ./preconfig.sh --jobs $COMPILE_JOBS --qt-config "$QT_CFG" && cd ../..
 src/qt/bin/qmake $QMAKE_ARGS
 make -j$COMPILE_JOBS
