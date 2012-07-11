@@ -1,10 +1,9 @@
-phantomjs (1.6.0-4) UNRELEASED; urgency=low
+phantomjs (1.6.0-4) unstable; urgency=low
 
   * debian/patches/return_build_error: Removed.
-  * debian/bin/phantomjs: Fix invoke command with correct args. 
-    (Closes: #681096)
+  * debian/bin/phantomjs: Exec with args. (Closes: #681096)
 
- -- TANIGUCHI Takaki <takaki@debian.org>  Wed, 11 Jul 2012 10:04:26 +0900
+ -- TANIGUCHI Takaki <takaki@debian.org>  Wed, 11 Jul 2012 11:04:04 +0900
 
 phantomjs (1.6.0-3) unstable; urgency=low
 
