@@ -1,3 +1,10 @@
+phantomjs (1.6.0-5) UNRELEASED; urgency=low
+
+  * debian/install: install all customized Qt ralted libraries. 
+   (Closes: #681505, #681829)
+
+ -- TANIGUCHI Takaki <takaki@debian.org>  Tue, 17 Jul 2012 17:20:53 +0900
+
 phantomjs (1.6.0-4) unstable; urgency=low
 
   * debian/patches/return_build_error: Removed.
