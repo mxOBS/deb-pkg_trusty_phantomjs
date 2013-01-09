@@ -42,12 +42,6 @@ QTemporaryFile* Utils::m_tempHarness = 0;
 QTemporaryFile* Utils::m_tempWrapper = 0;
 bool Utils::printDebugMessages = false;
 
-// public:
-void Utils::showUsage()
-{
-    Terminal::instance()->cout(Utils::readResourceFileUtf8(":/usage.txt"));
-}
-
 void Utils::messageHandler(QtMsgType type, const char *msg)
 {
     QDateTime now = QDateTime::currentDateTime();
@@ -71,16 +65,34 @@ void Utils::messageHandler(QtMsgType type, const char *msg)
         abort();
     }
 }
-
-bool Utils::exceptionHandler(const char* dump_path, const char* minidump_id, void* context, bool succeeded)
+#ifdef Q_OS_WIN32
+bool Utils::exceptionHandler(const TCHAR* dump_path, const TCHAR* minidump_id,
+                             void* context, EXCEPTION_POINTERS* exinfo,
+                             MDRawAssertionInfo *assertion, bool succeeded)
 {
+    Q_UNUSED(exinfo);
+    Q_UNUSED(assertion);
     Q_UNUSED(context);
-    fprintf(stderr, "PhantomJS has crashed. Please file a bug report at " \
-                    "https://code.google.com/p/phantomjs/issues/entry and " \
-                    "attach the crash dump file: %s/%s.dmp\n",
+  
+    fprintf(stderr, "PhantomJS has crashed. Please read the crash reporting guide at " \
+                    "https://github.com/ariya/phantomjs/wiki/Crash-Reporting and file a " \
+                    "bug report at https://code.google.com/p/phantomjs/issues/entry with the " \
+                    "crash dump file attached: %ls\\%ls.dmp\n",
                     dump_path, minidump_id);
     return succeeded;
 }
+#else
+bool Utils::exceptionHandler(const char* dump_path, const char* minidump_id, void* context, bool succeeded)
+{
+    Q_UNUSED(context);
+    fprintf(stderr, "PhantomJS has crashed. Please read the crash reporting guide at " \
+                    "https://github.com/ariya/phantomjs/wiki/Crash-Reporting and file a " \
+                    "bug report at https://code.google.com/p/phantomjs/issues/entry with the " \
+                    "crash dump file attached: %s/%s.dmp\n",
+                    dump_path, minidump_id);
+    return succeeded;
+}
+#endif
 
 QVariant Utils::coffee2js(const QString &script)
 {

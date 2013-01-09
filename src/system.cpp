@@ -2,6 +2,7 @@
   This file is part of the PhantomJS project from Ofi Labs.
 
   Copyright (C) 2012 execjosh, http://execjosh.blogspot.com
+  Copyright (C) 2012 James M. Greene <james.m.greene@gmail.com>
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
@@ -29,8 +30,10 @@
 
 #include "system.h"
 
-#include <QVariantMap>
+#include <QApplication>
+#include <QSslSocket>
 #include <QSysInfo>
+#include <QVariantMap>
 
 #include "../env.h"
 
@@ -78,6 +81,9 @@ System::System(QObject *parent) :
     case QSysInfo::WV_WINDOWS7:
         m_os.insert("version", "7");
         break;
+    case QSysInfo::WV_WINDOWS8:
+        m_os.insert("version", "8");
+        break;
     default:
         m_os.insert("version", "unknown");
         break;
@@ -100,6 +106,9 @@ System::System(QObject *parent) :
     case QSysInfo::MV_10_7:
         m_os.insert("version", "10.7 (Lion)");
         break;
+    case QSysInfo::MV_10_8:
+        m_os.insert("version", "10.8 (Mountain Lion)");
+        break;
     default:
         m_os.insert("version", "unknown");
         break;
@@ -111,6 +120,11 @@ System::System(QObject *parent) :
     m_os.insert("name", "unknown");
     m_os.insert("version", "unknown");
 #endif
+}
+
+qint64 System::pid() const
+{
+    return QApplication::applicationPid();
 }
 
 void System::setArgs(const QStringList &args)
@@ -133,10 +147,17 @@ QVariant System::os() const
     return m_os;
 }
 
+bool System::isSSLSupported() const
+{
+    return QSslSocket::supportsSsl();
+}
+
 void System::initCompletions()
 {
+    addCompletion("pid");
     addCompletion("args");
     addCompletion("env");
     addCompletion("platform");
     addCompletion("os");
+    addCompletion("isSSLSupported");
 }

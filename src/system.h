@@ -2,6 +2,7 @@
   This file is part of the PhantomJS project from Ofi Labs.
 
   Copyright (C) 2012 execjosh, http://execjosh.blogspot.com
+  Copyright (C) 2012 James M. Greene <james.m.greene@gmail.com>
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions are met:
@@ -42,12 +43,16 @@
 class System : public REPLCompletable
 {
     Q_OBJECT
+    Q_PROPERTY(qint64 pid READ pid)
     Q_PROPERTY(QStringList args READ args)
     Q_PROPERTY(QVariant env READ env)
     Q_PROPERTY(QVariant os READ os)
+    Q_PROPERTY(bool isSSLSupported READ isSSLSupported)
 
 public:
     explicit System(QObject *parent = 0);
+
+    qint64 pid() const;
 
     void setArgs(const QStringList& args);
     QStringList args() const;
@@ -55,6 +60,8 @@ public:
     QVariant env() const;
 
     QVariant os() const;
+
+    bool isSSLSupported() const;
 
 private:
     QStringList m_args;
