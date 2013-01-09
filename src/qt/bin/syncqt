@@ -1,12 +1,48 @@
 #!/usr/bin/perl -w
-######################################################################
+#############################################################################
+##
+## Copyright (C) 2012 Digia Plc and/or its subsidiary(-ies).
+## Contact: http://www.qt-project.org/legal
+##
+## This file is part of the build configuration tools of the Qt Toolkit.
+##
+## $QT_BEGIN_LICENSE:LGPL$
+## Commercial License Usage
+## Licensees holding valid commercial Qt licenses may use this file in
+## accordance with the commercial license agreement provided with the
+## Software or, alternatively, in accordance with the terms contained in
+## a written agreement between you and Digia.  For licensing terms and
+## conditions see http://qt.digia.com/licensing.  For further information
+## use the contact form at http://qt.digia.com/contact-us.
+##
+## GNU Lesser General Public License Usage
+## Alternatively, this file may be used under the terms of the GNU Lesser
+## General Public License version 2.1 as published by the Free Software
+## Foundation and appearing in the file LICENSE.LGPL included in the
+## packaging of this file.  Please review the following information to
+## ensure the GNU Lesser General Public License version 2.1 requirements
+## will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+##
+## In addition, as a special exception, Digia gives you certain additional
+## rights.  These rights are described in the Digia Qt LGPL Exception
+## version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
+##
+## GNU General Public License Usage
+## Alternatively, this file may be used under the terms of the GNU
+## General Public License version 3.0 as published by the Free Software
+## Foundation and appearing in the file LICENSE.GPL included in the
+## packaging of this file.  Please review the following information to
+## ensure the GNU General Public License version 3.0 requirements will be
+## met: http://www.gnu.org/copyleft/gpl.html.
+##
+##
+## $QT_END_LICENSE$
+##
+#############################################################################
+
 #
 # Synchronizes Qt header files - internal development tool.
 #
-# Copyright (C) 2012 Nokia Corporation and/or its subsidiary(-ies).
-# Contact: Nokia Corporation (qt-info@nokia.com)
-#
-######################################################################
 
 # use packages -------------------------------------------------------
 use File::Basename;
@@ -30,28 +66,10 @@ my $basedir = $ENV{"QTDIR"};
 $basedir =~ s=\\=/=g;
 my %modules = ( # path to module name map
         "QtGui" => "$basedir/src/gui",
-        "QtOpenGL" => "$basedir/src/opengl",
-        "QtOpenVG" => "$basedir/src/openvg",
         "QtCore" => "$basedir/src/corelib",
         "QtXml" => "$basedir/src/xml",
-        "QtXmlPatterns" => "$basedir/src/xmlpatterns",
-        "QtSql" => "$basedir/src/sql",
         "QtNetwork" => "$basedir/src/network",
-        "QtSvg" => "$basedir/src/svg",
-        "QtDeclarative" => "$basedir/src/declarative",
-        "QtScript" => "$basedir/src/script",
-        "QtScriptTools" => "$basedir/src/scripttools",
-        "Qt3Support" => "$basedir/src/qt3support",
-        "ActiveQt" => "$basedir/src/activeqt",
-        "QtTest" => "$basedir/src/testlib",
-        "QtHelp" => "$basedir/tools/assistant/lib",
-        "QtDesigner" => "$basedir/tools/designer/src/lib",
-        "QtUiTools" => "$basedir/tools/designer/src/uitools",
-        "QtDBus" => "$basedir/src/dbus",
         "QtWebKit" => "$basedir/src/3rdparty/webkit/Source/WebKit/qt",
-        "phonon" => "$basedir/src/phonon",
-        "QtMultimedia" => "$basedir/src/multimedia",
-        "QtMeeGoGraphicsSystemHelper" => "$basedir/tools/qmeegographicssystemhelper",
 );
 my %moduleheaders = ( # restrict the module headers to those found in relative path
         "QtWebKit" => "Api",
@@ -694,7 +712,7 @@ my @ignore_for_master_contents = ( "qt.h", "qpaintdevicedefs.h" );
 my @ignore_for_include_check = ( "qatomic.h" );
 my @ignore_for_qt_begin_header_check = ( "qiconset.h", "qconfig.h", "qconfig-dist.h", "qconfig-large.h", "qconfig-medium.h", "qconfig-minimal.h", "qconfig-small.h", "qfeatures.h", "qt_windows.h" );
 my @ignore_for_qt_begin_namespace_check = ( "qconfig.h", "qconfig-dist.h", "qconfig-large.h", "qconfig-medium.h", "qconfig-minimal.h", "qconfig-small.h", "qfeatures.h", "qatomic_arch.h", "qatomic_windowsce.h", "qt_windows.h", "qatomic_macosx.h", "qatomic_arm.h", "qatomic_armv7.h" );
-my @ignore_for_qt_module_check = ( "$modules{QtCore}/arch", "$modules{QtCore}/global", "$modules{QtSql}/drivers", "$modules{QtTest}", "$modules{QtDesigner}", "$modules{QtUiTools}", "$modules{QtDBus}", "$modules{phonon}" );
+my @ignore_for_qt_module_check = ( "$modules{QtCore}/arch", "$modules{QtCore}/global" );
 my %colliding_headers = ();
 my %inject_headers = ( "$basedir/src/corelib/global" => ( "qconfig.h" ) ); # all from build dir
 
@@ -740,7 +758,6 @@ foreach my $lib (@modules_to_sync) {
                         $master_contents .= "#include <QtCore/QtCore>\n" if($_ eq "core");
                         $master_contents .= "#include <QtGui/QtGui>\n" if($_ eq "gui");
                         $master_contents .= "#include <QtNetwork/QtNetwork>\n" if($_ eq "network");
-                        $master_contents .= "#include <QtSvg/QtSvg>\n" if($_ eq "svg");
                         $master_contents .= "#include <QtDeclarative/QtDeclarative>\n" if($_ eq "declarative");
                         $master_contents .= "#include <QtScript/QtScript>\n" if($_ eq "script");
                         $master_contents .= "#include <QtScriptTools/QtScriptTools>\n" if($_ eq "scripttools");

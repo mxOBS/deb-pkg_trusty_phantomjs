@@ -16,7 +16,6 @@ CONFIG += staticlib
 DESTDIR = $$WEBCORE_DESTDIR
 
 DEFINES += BUILDING_WEBKIT
-DEFINES += QT_MAKEDLL
 
 contains(DEFINES, WTF_USE_QT_MOBILE_THEME=1) {
     DEFINES += ENABLE_NO_LISTBOX_RENDERING=1
@@ -989,6 +988,7 @@ SOURCES += \
     platform/graphics/PathTraversalState.cpp \
     platform/graphics/Pattern.cpp \
     platform/graphics/RoundedIntRect.cpp \
+    platform/graphics/WOFFFileFormat.cpp \
     platform/graphics/SegmentedFontData.cpp \
     platform/graphics/ShadowBlur.cpp \
     platform/graphics/SVGGlyph.cpp \
@@ -1959,6 +1959,7 @@ HEADERS += \
     platform/graphics/PathTraversalState.h \
     platform/graphics/Pattern.h \
     platform/graphics/RoundedIntRect.h \
+    platform/graphics/WOFFFileFormat.h \
     platform/graphics/qt/FontCustomPlatformData.h \
     platform/graphics/qt/ImageDecoderQt.h \
     platform/graphics/qt/StillImageQt.h \
