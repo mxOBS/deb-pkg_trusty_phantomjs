@@ -51,12 +51,12 @@ describe("phantom global object", function() {
         expect(phantom.version.major).toEqual(1);
     });
 
-    it("should return 8 as the minor version", function() {
-        expect(phantom.version.minor).toEqual(8);
+    it("should return 9 as the minor version", function() {
+        expect(phantom.version.minor).toEqual(9);
     });
 
-    it("should return 1 as the patch version", function() {
-        expect(phantom.version.patch).toEqual(1);
+    it("should return 0 as the patch version", function() {
+        expect(phantom.version.patch).toEqual(0);
     });
 
     it("should have 'injectJs' function", function() {
@@ -71,7 +71,7 @@ describe("phantom global object", function() {
         expect(phantom.hasOwnProperty('cookiesEnabled')).toBeTruthy();
         expect(phantom.cookiesEnabled).toBeTruthy();
     });
-    
+
     it("should be able to get the error signal handler that is currently set on it", function() {
         phantom.onError = undefined;
         expect(phantom.onError).toBeUndefined();

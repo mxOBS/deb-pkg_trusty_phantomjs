@@ -115,6 +115,7 @@ phantom.callback = function(callback) {
     // (for future, now both fs and system are loaded anyway)
     var nativeExports = {
         get fs() { return phantom.createFilesystem(); },
+        get child_process() { return phantom._createChildProcess(); },
         get system() { return phantom.createSystem(); }
     };
     var extensions = {
@@ -275,6 +276,9 @@ phantom.callback = function(callback) {
 
         // first see if there are any stubs for the request
         if (this.stubs.hasOwnProperty(request)) {
+            if (this.stubs[request].exports instanceof Function) {
+                this.stubs[request].exports = this.stubs[request].exports();
+            }
             return this.stubs[request].exports;
         }
 
