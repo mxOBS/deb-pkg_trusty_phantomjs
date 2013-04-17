@@ -37,14 +37,14 @@
 #include "filesystem.h"
 #include "encoding.h"
 #include "config.h"
-#include "replcompletable.h"
 #include "system.h"
+#include "childprocess.h"
 
 class WebPage;
 class CustomPage;
 class WebServer;
 
-class Phantom: public REPLCompletable
+class Phantom : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QStringList args READ args)
@@ -101,6 +101,11 @@ public:
     void setCookiesEnabled(const bool value);
 
     bool webdriverMode() const;
+
+    /**
+     * Create `child_process` module instance
+     */
+    Q_INVOKABLE QObject *_createChildProcess();
 
 public slots:
     QObject *createWebPage();
@@ -175,7 +180,6 @@ private slots:
 
 private:
     void doExit(int code);
-    virtual void initCompletions();
 
     Encoding m_scriptFileEnc;
     WebPage *m_page;
@@ -185,6 +189,7 @@ private:
     QVariantMap m_defaultPageSettings;
     FileSystem *m_filesystem;
     System *m_system;
+    ChildProcess *m_childprocess;
     QList<QPointer<WebPage> > m_pages;
     QList<QPointer<WebServer> > m_servers;
     Config m_config;
