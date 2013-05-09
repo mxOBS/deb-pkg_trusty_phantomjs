@@ -9,28 +9,16 @@ Subject: build with libjs-coffeesciprt
  src/phantomjs.qrc                 |    1 -
  4 files changed, 2 insertions(+), 4 deletions(-)
 
-Index: phantomjs/src/phantomjs.qrc
-===================================================================
---- phantomjs.orig/src/phantomjs.qrc	2012-03-31 20:42:59.000000000 +0900
-+++ phantomjs/src/phantomjs.qrc	2012-03-31 20:52:16.861058520 +0900
-@@ -2,7 +2,6 @@
-     <qresource prefix="/">
-         <file>remote_debugger_harness.html</file>
-         <file>phantomjs-icon.png</file>
--        <file>coffee-script.js</file>
-         <file>usage.txt</file>
-         <file>bootstrap.js</file>
-         <file>configurator.js</file>
 Index: phantomjs/src/csconverter.cpp
 ===================================================================
---- phantomjs.orig/src/csconverter.cpp	2012-03-31 20:42:59.000000000 +0900
-+++ phantomjs/src/csconverter.cpp	2012-03-31 20:53:29.797415091 +0900
+--- phantomjs.orig/src/csconverter.cpp	2013-05-09 09:58:59.548611914 +0900
++++ phantomjs/src/csconverter.cpp	2013-05-09 09:59:36.460792369 +0900
 @@ -49,7 +49,7 @@
      : QObject(QCoreApplication::instance())
  {
      m_webPage.mainFrame()->evaluateJavaScript(
--        Utils::readResourceFileUtf8(":/coffee-script.js"),
-+        Utils::readResourceFileUtf8("/usr/share/javascript/coffeescript/coffee-script.js"),
-         QString("phantomjs://coffee-script.js")
+-        Utils::readResourceFileUtf8(":/coffee-script/extras/coffee-script.js"),
++        Utils::readResourceFileUtf8("/usr/share/javascript/coffee-script/coffee-script.js"),
+         QString("phantomjs://coffee-script/extras/coffee-script.js")
      );
      m_webPage.mainFrame()->addToJavaScriptWindowObject("converter", this);
