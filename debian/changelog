@@ -3,6 +3,7 @@ phantomjs (1.9.0-1~1.gbpbd4b2d) UNRELEASED; urgency=low
   ** SNAPSHOT build @bd4b2d8e7a18bc44b0fd412b7d1b078e533e7ffc **
 
   * Imported Upstream version 1.9.0 (Closes: #685404, #702381)
+    * Fix ""Hello world" console.log() example prints nothing" (Closes: #696212)
 
  -- TANIGUCHI Takaki <takaki@asis.media-as.org>  Wed, 17 Apr 2013 22:14:21 +0900
 
