@@ -1,13 +1,14 @@
-phantomjs (1.9.0-1~1.gbpbd4b2d) UNRELEASED; urgency=low
-
-  ** SNAPSHOT build @bd4b2d8e7a18bc44b0fd412b7d1b078e533e7ffc **
+phantomjs (1.9.0-1) unstable; urgency=low
 
   * Imported Upstream version 1.9.0 (Closes: #685404, #702381)
-    * Fix ""Hello world" console.log() example prints nothing" (Closes: #696212)
-  * Fix "FTBFS: /usr/bin/ld: cannot find -ljpeg" <explain what you
-    changed and why> (Closes: #679760)
+    + Fix ""Hello world" console.log() example prints nothing" (Closes: #696212)
+  * Fix "FTBFS: /usr/bin/ld: cannot find -ljpeg" (Closes: #679760)
+  * debian/patches/0001-build-with-libjs-coffeesciprt.patch: refresh patche
+  * debian/install: delete src/qt/*
+  * debian/patches/0002-Don-t-use-ld.gold-when-building-webkit.patch:
+    Fix FTBFS on i386. (Closes: #693761)
 
- -- TANIGUCHI Takaki <takaki@asis.media-as.org>  Wed, 17 Apr 2013 22:14:21 +0900
+ -- TANIGUCHI Takaki <takaki@debian.org>  Wed, 15 May 2013 10:40:40 +0900
 
 phantomjs (1.6.0-5) unstable; urgency=low
 
