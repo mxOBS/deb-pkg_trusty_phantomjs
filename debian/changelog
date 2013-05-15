@@ -4,6 +4,8 @@ phantomjs (1.9.0-1~1.gbpbd4b2d) UNRELEASED; urgency=low
 
   * Imported Upstream version 1.9.0 (Closes: #685404, #702381)
     * Fix ""Hello world" console.log() example prints nothing" (Closes: #696212)
+  * Fix "FTBFS: /usr/bin/ld: cannot find -ljpeg" <explain what you
+    changed and why> (Closes: #679760)
 
  -- TANIGUCHI Takaki <takaki@asis.media-as.org>  Wed, 17 Apr 2013 22:14:21 +0900
 
