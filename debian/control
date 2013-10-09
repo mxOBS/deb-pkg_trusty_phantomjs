@@ -14,7 +14,7 @@ Build-Depends: debhelper (>= 7.0.50~),
 	, libfontconfig1-dev
 	, libx11-dev
 	, libxext-dev
-Standards-Version: 3.9.3
+Standards-Version: 3.9.4
 Homepage: http://www.phantomjs.org/
 Vcs-Git: git://git.debian.org/collab-maint/phantomjs.git
 Vcs-Browser: http://git.debian.org/?p=collab-maint/phantomjs.git;a=summary
