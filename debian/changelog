@@ -1,3 +1,11 @@
+phantomjs (1.9.2-1~1.gbp5a42a6) UNRELEASED; urgency=low
+
+  ** SNAPSHOT build @5a42a6f36b6613009c149506d24855bf0c14fcb4 **
+
+  * Imported Upstream version 1.9.2
+
+ -- TANIGUCHI Takaki <takaki@asis.media-as.org>  Wed, 09 Oct 2013 16:06:53 +0900
+
 phantomjs (1.9.0-1) unstable; urgency=low
 
   * Imported Upstream version 1.9.0 (Closes: #685404, #702381)
