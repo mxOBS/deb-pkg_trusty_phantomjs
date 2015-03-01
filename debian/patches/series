@@ -1,3 +1,4 @@
 0002-Don-t-use-ld.gold-when-building-webkit.patch
 0001-build-with-libjs-coffeesciprt.patch
 pixman-arm.patch
+low-resource-build.patch

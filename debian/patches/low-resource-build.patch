@@ -1,0 +1,12 @@
+diff --git a/src/qt/preconfig.sh b/src/qt/preconfig.sh
+index 7cfafa0..f0b0749 100755
+--- a/src/qt/preconfig.sh
++++ b/src/qt/preconfig.sh
+@@ -28,6 +28,7 @@ QT_CFG+=' -nomake tools'        # Don't built the tools
+ 
+ QT_CFG+=' -no-exceptions'       # Don't use C++ exception
+ QT_CFG+=' -no-stl'              # No need for STL compatibility
++QT_CFG+=' -no-pch'              # pch exhausts ram
+ 
+ # Irrelevant Qt features
+ QT_CFG+=' -no-libmng'
